@@ -15,7 +15,10 @@ export const Route = createFileRoute("/")({
       { property: "og:description", content: "Premium Rajshahi mangoes and curated electronics, delivered across Bangladesh." },
       { property: "og:url", content: "https://chat-and-sell-hub.lovable.app/" },
     ],
-    links: [{ rel: "canonical", href: "https://chat-and-sell-hub.lovable.app/" }],
+    links: [
+      { rel: "canonical", href: "https://chat-and-sell-hub.lovable.app/" },
+      { rel: "preload", as: "image", href: mangoHero, fetchpriority: "high" },
+    ],
     scripts: [
       {
         type: "application/ld+json",
@@ -71,6 +74,7 @@ function Index() {
             alt="Ripe Rajshahi mangoes in a basket"
             width={1600}
             height={900}
+            fetchPriority="high"
             className="absolute inset-0 size-full object-cover opacity-40"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-stone-900 via-stone-900/40 to-transparent" />
