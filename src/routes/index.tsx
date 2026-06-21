@@ -15,7 +15,10 @@ export const Route = createFileRoute("/")({
       { property: "og:description", content: "Premium Rajshahi mangoes and curated electronics, delivered across Bangladesh." },
       { property: "og:url", content: "https://chat-and-sell-hub.lovable.app/" },
     ],
-    links: [{ rel: "canonical", href: "https://chat-and-sell-hub.lovable.app/" }],
+    links: [
+      { rel: "canonical", href: "https://chat-and-sell-hub.lovable.app/" },
+      { rel: "preload", as: "image", href: mangoHero, fetchpriority: "high" },
+    ],
     scripts: [
       {
         type: "application/ld+json",
