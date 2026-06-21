@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://chat-and-sell-hub.lovable.app/sitemap.xml

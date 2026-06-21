@@ -9,10 +9,33 @@ import mangoHero from "@/assets/mango-hero.jpg";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Deshi Cart — Seasonal mangoes & everyday tech" },
+      { title: "Deshi Cart — Seasonal Mangoes & Tech Essentials" },
       { name: "description", content: "Premium Rajshahi mangoes (sold out for the season) and a curated selection of electronics, delivered across Bangladesh." },
-      { property: "og:title", content: "Deshi Cart" },
+      { property: "og:title", content: "Deshi Cart — Seasonal Mangoes & Tech Essentials" },
       { property: "og:description", content: "Premium Rajshahi mangoes and curated electronics, delivered across Bangladesh." },
+      { property: "og:url", content: "https://chat-and-sell-hub.lovable.app/" },
+    ],
+    links: [{ rel: "canonical", href: "https://chat-and-sell-hub.lovable.app/" }],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          name: "Deshi Cart",
+          url: "https://chat-and-sell-hub.lovable.app/",
+        }),
+      },
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "Organization",
+          name: "Deshi Cart",
+          url: "https://chat-and-sell-hub.lovable.app/",
+          address: { "@type": "PostalAddress", addressLocality: "Dhaka", addressCountry: "BD" },
+        }),
+      },
     ],
   }),
   component: Index,
