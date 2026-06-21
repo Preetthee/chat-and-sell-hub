@@ -8,7 +8,15 @@ import { toast } from "sonner";
 import { Link } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_authenticated/profile")({
-  head: () => ({ meta: [{ title: "Profile — Deshi Cart" }] }),
+  head: () => ({
+    meta: [
+      { title: "Profile — Deshi Cart" },
+      { name: "description", content: "Manage your Deshi Cart profile, view your account details, and access your developer dashboard if available." },
+      { property: "og:title", content: "Profile — Deshi Cart" },
+      { property: "og:description", content: "Manage your Deshi Cart profile and account." },
+      { name: "robots", content: "noindex" },
+    ],
+  }),
   component: ProfilePage,
 });
 

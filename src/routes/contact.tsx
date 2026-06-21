@@ -8,9 +8,29 @@ export const Route = createFileRoute("/contact")({
   head: () => ({
     meta: [
       { title: "Contact — Deshi Cart" },
-      { name: "description", content: "Reach Deshi Cart on WhatsApp, Messenger, email, or phone." },
+      { name: "description", content: "Reach Deshi Cart on WhatsApp, Messenger, email, or phone — we reply quickly from Dhaka, Bangladesh." },
       { property: "og:title", content: "Contact Deshi Cart" },
       { property: "og:description", content: "Reach us on WhatsApp, Messenger, email, or phone." },
+      { property: "og:url", content: "https://chat-and-sell-hub.lovable.app/contact" },
+    ],
+    links: [{ rel: "canonical", href: "https://chat-and-sell-hub.lovable.app/contact" }],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "LocalBusiness",
+          name: "Deshi Cart",
+          url: "https://chat-and-sell-hub.lovable.app/",
+          email: "hello@example.com",
+          telephone: "+8801410533563",
+          address: {
+            "@type": "PostalAddress",
+            addressLocality: "Dhaka",
+            addressCountry: "BD",
+          },
+        }),
+      },
     ],
   }),
   component: ContactPage,

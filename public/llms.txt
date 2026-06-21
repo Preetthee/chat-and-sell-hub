@@ -1,0 +1,8 @@
+# Deshi Cart
+
+> Bangladesh e-commerce for premium Rajshahi mangoes (seasonal) and curated tech essentials, delivered nationwide.
+
+## Pages
+
+- [Home](/): Featured mangoes and tech essentials with seasonal availability.
+- [Contact](/contact): Reach Deshi Cart on WhatsApp, Messenger, email, or phone.

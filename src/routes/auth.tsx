@@ -10,8 +10,13 @@ export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
       { title: "Sign in — Deshi Cart" },
-      { name: "description", content: "Sign in to Deshi Cart with Google or email." },
+      { name: "description", content: "Sign in to Deshi Cart with your Google account or email to track orders and save your favorites." },
+      { property: "og:title", content: "Sign in — Deshi Cart" },
+      { property: "og:description", content: "Sign in to Deshi Cart with your Google account or email to track orders and save your favorites." },
+      { property: "og:url", content: "https://chat-and-sell-hub.lovable.app/auth" },
+      { name: "robots", content: "noindex" },
     ],
+    links: [{ rel: "canonical", href: "https://chat-and-sell-hub.lovable.app/auth" }],
   }),
   component: AuthPage,
 });
