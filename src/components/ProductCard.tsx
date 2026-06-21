@@ -27,7 +27,7 @@ export function ProductCard({ product }: { product: Product }) {
           {product.image_url ? (
             <img
               src={product.image_url}
-              alt={product.name}
+              alt={`${product.name} from Deshi Cart`}
               loading="lazy"
               className="size-full object-cover transition-transform duration-500 group-hover:scale-105"
             />

@@ -79,9 +79,9 @@ function Index() {
               Harvest Season Ended
             </span>
             <h1 className="mb-4 font-display text-4xl font-extrabold leading-tight md:text-6xl">
-              All out.
+              Deshi Cart — Tech Essentials
               <br />
-              Stay tuned next year.
+              and Premium Rajshahi Mangoes
             </h1>
             <p className="max-w-md text-stone-200">
               Our premium Rajshahi mangoes are sold out for this season. See you next May! Meanwhile, browse our tech essentials below.
