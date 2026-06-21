@@ -91,6 +91,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:card", content: "summary" },
       { name: "twitter:title", content: "Deshi Cart — Mangoes & Tech Essentials" },
       { name: "twitter:description", content: "Premium Rajshahi mangoes and curated tech essentials, delivered across Bangladesh." },
+      { name: "google-site-verification", content: "dvzKXs_WU6CiEYNvEZaphqArL_tq5xnp7edmsYpPAdI" },
     ],
     links: [
       {
