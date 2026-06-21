@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -6,13 +6,22 @@ import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, useIsAdmin } from "@/hooks/use-auth";
-import { createProduct, deleteProduct } from "@/lib/products.functions";
+import { createProduct, deleteProduct, checkIsAdmin } from "@/lib/products.functions";
 import type { Product } from "@/components/ProductCard";
 import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/dev")({
   head: () => ({ meta: [{ title: "Dev Dashboard — Deshi Cart" }] }),
+  beforeLoad: async () => {
+    try {
+      const { isAdmin } = await checkIsAdmin();
+      if (!isAdmin) throw redirect({ to: "/profile" });
+    } catch (e: any) {
+      if (e?.isRedirect) throw e;
+      throw redirect({ to: "/profile" });
+    }
+  },
   component: DevPage,
 });
 
