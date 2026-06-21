@@ -10,8 +10,8 @@ export const CONTACT = {
 };
 
 export function whatsappLink(message?: string) {
-  const base = `https://wa.me/${CONTACT.whatsapp}`;
-  return message ? `${base}?text=${encodeURIComponent(message)}` : base;
+  const base = `https://web.whatsapp.com/send?phone=${CONTACT.whatsapp}`;
+  return message ? `${base}&text=${encodeURIComponent(message)}` : base;
 }
 
 export function FloatingContact() {

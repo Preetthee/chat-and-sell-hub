@@ -14,6 +14,8 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { FloatingContact } from "../components/FloatingContact";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { CartProvider } from "@/lib/cart-store";
+import { CartSidebar } from "@/components/CartSidebar";
 
 function NotFoundComponent() {
   return (
@@ -141,10 +143,13 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
-      <FloatingContact />
-      <Toaster />
+      <CartProvider>
+        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+        <Outlet />
+        <CartSidebar />
+        <FloatingContact />
+        <Toaster />
+      </CartProvider>
     </QueryClientProvider>
   );
 }
