@@ -1,44 +1,39 @@
-## What I'll build
+## Changes
 
-A warm-heritage storefront based on your selected design, powered by Lovable Cloud (database + auth).
+### 1. Fix WhatsApp button
+The `wa.me` short links redirect through `api.whatsapp.com`, which your browser/network blocks (per your screenshot). Switch all WhatsApp links to `https://web.whatsapp.com/send?phone=8801410533563&text=...` — opens WhatsApp Web on desktop and the app on mobile, and isn't behind the blocked subdomain. Update the helper in `FloatingContact.tsx` accordingly.
 
-### Pages / Routes
-- `/` — Home: sticky nav with logo + profile avatar, mango hero ("All out — stay tuned next year"), electronics product grid (loaded from DB), footer with contact info. Floating WhatsApp + Messenger buttons on every page.
-- `/auth` — Sign in / sign up with **Google** and **Email/password** (Facebook not natively supported on Lovable Cloud; will be omitted).
-- `/profile` — Shows user's Google avatar if signed in via Google; for email users, a colored circle with their initials. Shows email, name, sign-out button.
-- `/_authenticated/dev` — Admin-only page. Non-admins get redirected. Form to add a product (name, description, price, image URL, category, in-stock toggle) plus a table of existing products with delete.
-- `/contact` — Simple contact page listing WhatsApp, Messenger, email, phone (also shown in footer).
+### 2. Make preetthees@gmail.com the main admin
+Lovable Cloud does not expose the service-role key, so I cannot create the auth user + password from a script on your behalf. Two‑step flow:
 
-### Contact info wired in
-- WhatsApp: `+8801410533563` → `https://wa.me/8801410533563`
-- Messenger + email: placeholders you can edit later (I'll add `# TODO` so they're easy to find)
+1. You sign up once at `/auth` with `preetthees@gmail.com` / `Justcouse3#DC` (email confirmation off, so it logs you in immediately).
+2. I then run a migration that looks up that email in `auth.users` and inserts an `admin` row into `public.user_roles`. After you refresh, the `/dev` page unlocks.
 
-### Auth
-- Email + password and Google OAuth via Lovable Cloud.
-- An `onAuthStateChange` listener at the root keeps UI in sync.
-- The integration-managed `_authenticated` layout protects `/dev`.
+I'll wait for your "done signing up" before running the role migration.
 
-### Database (Lovable Cloud)
-- `products` table: `id`, `name`, `description`, `price_bdt`, `image_url`, `category`, `in_stock`, `created_at`. Public SELECT (anyone can view). INSERT/UPDATE/DELETE only for admins.
-- `app_role` enum (`admin`, `user`) + `user_roles` table (separate from profiles — security best practice). `has_role()` security-definer function used by RLS policies and route gating.
-- `profiles` table: `id` (FK auth.users), `display_name`, `avatar_url`. Auto-created via trigger on signup. RLS: users can read/update only their own row.
-- Seeded with the 4 dummy electronics (RAM, monitor, fan, keyboard) shown in the design.
+### 3. Cart system (replaces "Inquire on WhatsApp")
+- New `src/lib/cart-store.ts` — tiny Zustand store (already a dep via shadcn? if not, simple React context + `useReducer`) persisted to `localStorage`. Items: `{ productId, name, price_bdt, image_url, qty }`.
+- New `src/components/CartSidebar.tsx` — right-side `Sheet` (shadcn) with line items, qty +/−, remove, subtotal in ৳, and a **Checkout via WhatsApp** button that opens `web.whatsapp.com/send?phone=...&text=<formatted order summary>`.
+- Header gets a cart icon button with a badge count that opens the sidebar.
+- `ProductCard` button changes from "Inquire on WhatsApp" → **"Add to cart"** (disabled when `!in_stock`).
 
-### How you assign devs
-After you sign in once, I'll tell you exactly which SQL one-liner to run in the Cloud panel (or I can pre-seed your email if you give it to me now). Devs then see the floating "Dev Dashboard" button and can reach `/dev`.
+### 4. Mango as a hover-flip tile
+- Seed/insert a `Mangoes` product (Rajshahi mango) in the products grid with a "Mangoes" category and `in_stock = true`.
+- `ProductCard` gets an optional `hoverOverlay` slot. For the mango product (matched by category `Mangoes`), the card renders normally (image + price + Add to cart) **by default**, and on hover shows a dark overlay with **"All out — Stay tuned next year"** that disables the button. Works on desktop hover; on touch devices it falls back to a tap-to-toggle.
+- Leaves the existing hero section intact.
 
-### Design
-Verbatim port of the Warm Heritage prototype: Bricolage Grotesque display + Inter body, mango `#F59E0B`, surface `#FCFAF7`, dark stone hero, white product cards with stone-200 rings, mobile-first grid (2 → 3 → 4 cols). Tokens go into `src/styles.css` as-is.
+### 5. Cleanup
+- Hero text unchanged (already says "Stay tuned next year").
+- Footer/contact links also updated to the new WhatsApp URL.
 
-### Technical notes
-- TanStack Start + Lovable Cloud (Supabase under the hood).
-- Server functions for product create/delete with `requireSupabaseAuth` + `has_role('admin')` check.
-- Home product list uses a public server-publishable client read (works at SSR without auth).
-- Floating buttons are a single shared component mounted in `__root.tsx`.
-- One migration handles the enum, tables, grants, RLS policies, trigger, and seed.
+## Files touched
+- `src/components/FloatingContact.tsx` — new `whatsappLink()` using `web.whatsapp.com`
+- `src/components/ProductCard.tsx` — Add to cart + hover overlay support
+- `src/components/Header.tsx` — cart icon w/ badge
+- `src/components/CartSidebar.tsx` (new)
+- `src/lib/cart-store.ts` (new)
+- `src/routes/__root.tsx` — mount `<CartSidebar />`
+- migration: insert Mango product; (after your signup) insert admin role
 
-### What I won't do (and why)
-- **Facebook login**: not natively supported in Lovable Cloud. If you really need it later, we'd connect Supabase directly and enable Facebook in its dashboard.
-- **No checkout/cart**: per your message, customers contact you via WhatsApp/Messenger to buy. "Inquire on WhatsApp" button on each product card pre-fills a message with the product name.
-
-After approval I'll enable Lovable Cloud, run the migration, and build all pages in one pass.
+## Not doing
+- No real checkout / payment — order still goes out via WhatsApp message, just bundled.
