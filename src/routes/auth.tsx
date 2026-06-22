@@ -5,6 +5,7 @@ import { lovable } from "@/integrations/lovable";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { toast } from "sonner";
+import { logAuth } from "@/lib/auth-log";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -28,24 +29,39 @@ function AuthPage() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
+  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (data.user) navigate({ to: "/profile" });
+    let cancelled = false;
+    supabase.auth.getUser().then(({ data, error }) => {
+      if (cancelled) return;
+      if (error) logAuth("auth-page:getUser:error", { message: error.message });
+      if (data.user) {
+        logAuth("auth-page:already-signed-in", { userId: data.user.id });
+        navigate({ to: "/profile", replace: true });
+        return;
+      }
+      setChecking(false);
     });
+    return () => {
+      cancelled = true;
+    };
   }, [navigate]);
 
   async function handleGoogle() {
     setBusy(true);
+    logAuth("auth-page:google:start");
     const result = await lovable.auth.signInWithOAuth("google", {
       redirect_uri: window.location.origin + "/profile",
     });
     if (result.error) {
+      logAuth("auth-page:google:error", { message: String(result.error.message ?? result.error) });
       toast.error("Google sign-in failed", { description: String(result.error.message ?? result.error) });
       setBusy(false);
       return;
     }
     if (result.redirected) return;
+    logAuth("auth-page:google:ok");
     navigate({ to: "/profile" });
   }
 
@@ -54,6 +70,7 @@ function AuthPage() {
     setBusy(true);
     try {
       if (mode === "signup") {
+        logAuth("auth-page:signup:start", { email });
         const { error } = await supabase.auth.signUp({
           email,
           password,
@@ -63,18 +80,36 @@ function AuthPage() {
           },
         });
         if (error) throw error;
+        logAuth("auth-page:signup:ok", { email });
         toast.success("Check your email to confirm your account.");
       } else {
+        logAuth("auth-page:signin:start", { email });
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        logAuth("auth-page:signin:ok", { email });
         toast.success("Welcome back!");
         navigate({ to: "/profile" });
       }
     } catch (err) {
+      logAuth("auth-page:email:error", { message: err instanceof Error ? err.message : String(err) });
       toast.error("Authentication failed", { description: err instanceof Error ? err.message : String(err) });
     } finally {
       setBusy(false);
     }
+  }
+
+  if (checking) {
+    return (
+      <div className="min-h-screen bg-brand-surface font-sans text-brand-ink">
+        <Header />
+        <div className="mx-auto flex max-w-md items-center justify-center px-4 py-32">
+          <div className="flex items-center gap-3 text-sm text-stone-500">
+            <span className="size-3 animate-pulse rounded-full bg-brand-mango" />
+            Checking your session…
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

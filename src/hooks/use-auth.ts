@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { logAuth } from "@/lib/auth-log";
 
 export type Role = "admin" | "user";
 
@@ -9,10 +10,13 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
+      logAuth(`event:${event}`, { userId: s?.user?.id ?? null });
       setSession(s);
     });
-    supabase.auth.getSession().then(({ data }) => {
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (error) logAuth("getSession:error", { message: error.message });
+      else logAuth("getSession:ok", { userId: data.session?.user?.id ?? null });
       setSession(data.session);
       setLoading(false);
     });
