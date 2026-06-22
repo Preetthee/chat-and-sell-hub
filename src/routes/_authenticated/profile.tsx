@@ -21,16 +21,16 @@ export const Route = createFileRoute("/_authenticated/profile")({
 });
 
 function ProfilePage() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const { isAdmin } = useIsAdmin(user);
   const navigate = useNavigate();
   const [signingOut, setSigningOut] = useState(false);
 
   useEffect(() => {
-    if (!user) navigate({ to: "/auth" });
-  }, [user, navigate]);
+    if (!loading && !user) navigate({ to: "/auth" });
+  }, [loading, user, navigate]);
 
-  if (!user) return null;
+  if (loading || !user) return null;
 
   const avatarUrl = (user.user_metadata?.avatar_url as string | undefined) || null;
   const name = (user.user_metadata?.full_name as string | undefined) || user.email || "You";
