@@ -1,39 +1,33 @@
-## Changes
+## Goal
+Expand profile, products management, and catalog with filtering + 100+ seeded products.
 
-### 1. Fix WhatsApp button
-The `wa.me` short links redirect through `api.whatsapp.com`, which your browser/network blocks (per your screenshot). Switch all WhatsApp links to `https://web.whatsapp.com/send?phone=8801410533563&text=...` — opens WhatsApp Web on desktop and the app on mobile, and isn't behind the blocked subdomain. Update the helper in `FloatingContact.tsx` accordingly.
+## 1. Profile avatar support
+- Create a Cloud storage bucket `avatars` (public read, owner write) via migration.
+- In `src/routes/_authenticated/profile.tsx` add an avatar block: shows current `avatar_url`, "Upload" button uploads to `avatars/{user_id}.{ext}`, then saves the public URL onto `profiles.avatar_url`. "Remove" clears it.
+- Header already shows avatar from profile — no change needed there.
 
-### 2. Make preetthees@gmail.com the main admin
-Lovable Cloud does not expose the service-role key, so I cannot create the auth user + password from a script on your behalf. Two‑step flow:
+## 2. Developer products page
+- Split product management out of `/dev` into a dedicated `/dev/products` route (`src/routes/_authenticated/dev.products.tsx`) with the inventory table + add form, kept admin-gated via `checkIsAdmin`.
+- `/dev` becomes a small dashboard landing with a link card to "Manage products".
 
-1. You sign up once at `/auth` with `preetthees@gmail.com` / `Justcouse3#DC` (email confirmation off, so it logs you in immediately).
-2. I then run a migration that looks up that email in `auth.users` and inserts an `admin` row into `public.user_roles`. After you refresh, the `/dev` page unlocks.
+## 3. Product availability toggle
+- On the dev products page, replace the static "In stock / Out" badge with a clickable switch that calls a new `toggleProductStock` server function (admin-gated, updates `in_stock`).
+- Add `updateProduct` server function for future use (used by the toggle).
 
-I'll wait for your "done signing up" before running the role migration.
+## 4. Category filter on the homepage
+- In `src/routes/index.tsx`, derive the unique category list from products and render a horizontal chip row ("All" + each category).
+- Use URL search param `?category=` via `validateSearch` so the filter is shareable; filter the rendered grid client-side from the existing query data.
 
-### 3. Cart system (replaces "Inquire on WhatsApp")
-- New `src/lib/cart-store.ts` — tiny Zustand store (already a dep via shadcn? if not, simple React context + `useReducer`) persisted to `localStorage`. Items: `{ productId, name, price_bdt, image_url, qty }`.
-- New `src/components/CartSidebar.tsx` — right-side `Sheet` (shadcn) with line items, qty +/−, remove, subtotal in ৳, and a **Checkout via WhatsApp** button that opens `web.whatsapp.com/send?phone=...&text=<formatted order summary>`.
-- Header gets a cart icon button with a badge count that opens the sidebar.
-- `ProductCard` button changes from "Inquire on WhatsApp" → **"Add to cart"** (disabled when `!in_stock`).
+## 5. Seed 100+ dummy products
+- Single migration that inserts ~110 products across categories: Electronics, Audio, Wearables, Accessories, Home, Gaming, Cameras, Mobile, Computing, Lighting.
+- Each row gets name, short description, realistic BDT price, a category, `in_stock` (mostly true, a handful false to exercise the toggle/badge), `sort_order`, and an `image_url` pointing at Unsplash `source.unsplash.com` keyword URLs so cards render without manual asset work.
 
-### 4. Mango as a hover-flip tile
-- Seed/insert a `Mangoes` product (Rajshahi mango) in the products grid with a "Mangoes" category and `in_stock = true`.
-- `ProductCard` gets an optional `hoverOverlay` slot. For the mango product (matched by category `Mangoes`), the card renders normally (image + price + Add to cart) **by default**, and on hover shows a dark overlay with **"All out — Stay tuned next year"** that disables the button. Works on desktop hover; on touch devices it falls back to a tap-to-toggle.
-- Leaves the existing hero section intact.
+## Technical notes
+- New file: `src/lib/products.functions.ts` gains `toggleProductStock` and `updateProduct` (both `requireSupabaseAuth` + `has_role(_, 'admin')` check, mirroring `createProduct`/`deleteProduct`).
+- Storage: migration creates `avatars` bucket with policies — public SELECT, INSERT/UPDATE/DELETE restricted to `auth.uid()::text = (storage.foldername(name))[1]` or filename prefix match.
+- Seed migration is data-only `INSERT`s into `public.products`; safe to re-run guarded by `ON CONFLICT DO NOTHING` on name (add a one-off unique index in the same migration, or use `WHERE NOT EXISTS`).
+- Homepage filter uses Zod via `@tanstack/zod-adapter` for `validateSearch({ category: z.string().optional() })`; no extra DB round-trip — filter the existing `["products"]` query in memory.
 
-### 5. Cleanup
-- Hero text unchanged (already says "Stay tuned next year").
-- Footer/contact links also updated to the new WhatsApp URL.
-
-## Files touched
-- `src/components/FloatingContact.tsx` — new `whatsappLink()` using `web.whatsapp.com`
-- `src/components/ProductCard.tsx` — Add to cart + hover overlay support
-- `src/components/Header.tsx` — cart icon w/ badge
-- `src/components/CartSidebar.tsx` (new)
-- `src/lib/cart-store.ts` (new)
-- `src/routes/__root.tsx` — mount `<CartSidebar />`
-- migration: insert Mango product; (after your signup) insert admin role
-
-## Not doing
-- No real checkout / payment — order still goes out via WhatsApp message, just bundled.
+## Out of scope
+- Image cropping / resizing for avatars (raw upload only).
+- Pagination on homepage (110 cards in a responsive grid is fine; can revisit).
