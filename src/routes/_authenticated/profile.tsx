@@ -1,11 +1,12 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, useIsAdmin, initials } from "@/hooks/use-auth";
 import { toast } from "sonner";
 import { logAuth } from "@/lib/auth-log";
+import { Camera, Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/profile")({
   head: () => ({
@@ -56,6 +57,10 @@ function ProfilePage() {
   const [editing, setEditing] = useState(false);
   const [profileLoading, setProfileLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarPath, setAvatarPath] = useState<string | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/auth" });
@@ -67,7 +72,7 @@ function ProfilePage() {
     setProfileLoading(true);
     supabase
       .from("profiles")
-      .select("display_name, phone, bio, address, city, country")
+      .select("display_name, phone, bio, address, city, country, avatar_url")
       .eq("id", user.id)
       .maybeSingle()
       .then(({ data, error }) => {
@@ -84,6 +89,20 @@ function ProfilePage() {
             city: data.city ?? "",
             country: data.country ?? "",
           });
+          const stored = data.avatar_url ?? null;
+          setAvatarPath(stored);
+          if (stored && stored.startsWith(`${user.id}/`)) {
+            // private bucket — sign it
+            supabase.storage
+              .from("avatars")
+              .createSignedUrl(stored, 60 * 60 * 24 * 7)
+              .then(({ data: signed }) => {
+                if (!cancelled) setAvatarUrl(signed?.signedUrl ?? null);
+              });
+          } else {
+            // OAuth-provided external URL stored as-is
+            setAvatarUrl(stored);
+          }
         }
         setProfileLoading(false);
       });
