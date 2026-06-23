@@ -1,12 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
+import { zodValidator, fallback } from "@tanstack/zod-adapter";
+import { z } from "zod";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { ProductCard, type Product } from "@/components/ProductCard";
 import { supabase } from "@/integrations/supabase/client";
 import mangoHero from "@/assets/mango-hero.jpg";
 
+const searchSchema = z.object({
+  category: fallback(z.string(), "").default(""),
+});
+
 export const Route = createFileRoute("/")({
+  validateSearch: zodValidator(searchSchema),
   head: () => ({
     meta: [
       { title: "Deshi Cart — Seasonal Mangoes & Tech Essentials" },
@@ -61,6 +69,22 @@ function useProducts() {
 
 function Index() {
   const { data: products = [], isLoading } = useProducts();
+  const { category } = Route.useSearch();
+  const navigate = Route.useNavigate();
+
+  const categories = useMemo(() => {
+    const set = new Set<string>();
+    products.forEach((p) => set.add(p.category));
+    return Array.from(set).sort();
+  }, [products]);
+
+  const visible = useMemo(
+    () => (category ? products.filter((p) => p.category === category) : products),
+    [products, category],
+  );
+
+  const setCategory = (next: string) =>
+    navigate({ search: (prev) => ({ ...prev, category: next }) });
 
   return (
     <div className="min-h-screen bg-brand-surface font-sans text-brand-ink">
@@ -103,19 +127,49 @@ function Index() {
           </div>
         </div>
 
+        {categories.length > 0 && (
+          <div className="mb-6 -mx-1 flex gap-2 overflow-x-auto px-1 pb-2">
+            <button
+              type="button"
+              onClick={() => setCategory("")}
+              className={`shrink-0 rounded-full border px-4 py-1.5 text-sm font-semibold transition-colors ${
+                !category
+                  ? "border-brand-ink bg-brand-ink text-white"
+                  : "border-stone-200 bg-white text-stone-600 hover:bg-stone-50"
+              }`}
+            >
+              All
+            </button>
+            {categories.map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setCategory(c)}
+                className={`shrink-0 rounded-full border px-4 py-1.5 text-sm font-semibold transition-colors ${
+                  category === c
+                    ? "border-brand-ink bg-brand-ink text-white"
+                    : "border-stone-200 bg-white text-stone-600 hover:bg-stone-50"
+                }`}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+        )}
+
         {isLoading ? (
           <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="aspect-[3/4] animate-pulse rounded-2xl bg-stone-100" />
             ))}
           </div>
-        ) : products.length === 0 ? (
+        ) : visible.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-stone-300 p-10 text-center text-stone-500">
-            No products listed yet.
+            No products in this category.
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-            {products.map((p) => (
+            {visible.map((p) => (
               <ProductCard key={p.id} product={p} />
             ))}
           </div>
