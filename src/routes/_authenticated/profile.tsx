@@ -174,6 +174,61 @@ function ProfilePage() {
     toast.info("Filled with sample info — edit as you like, then save.");
   }
 
+  async function onAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !user) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image must be under 5 MB");
+      return;
+    }
+    setUploadingAvatar(true);
+    const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+    const path = `${user.id}/avatar.${ext}`;
+    const { error: upErr } = await supabase.storage
+      .from("avatars")
+      .upload(path, file, { upsert: true, contentType: file.type });
+    if (upErr) {
+      setUploadingAvatar(false);
+      toast.error("Upload failed", { description: upErr.message });
+      return;
+    }
+    // If previous file had a different extension, remove it
+    if (avatarPath && avatarPath !== path && avatarPath.startsWith(`${user.id}/`)) {
+      await supabase.storage.from("avatars").remove([avatarPath]);
+    }
+    const { error: dbErr } = await supabase
+      .from("profiles")
+      .upsert({ id: user.id, email: user.email, avatar_url: path, updated_at: new Date().toISOString() }, { onConflict: "id" });
+    if (dbErr) {
+      setUploadingAvatar(false);
+      toast.error("Could not save avatar", { description: dbErr.message });
+      return;
+    }
+    const { data: signed } = await supabase.storage
+      .from("avatars")
+      .createSignedUrl(path, 60 * 60 * 24 * 7);
+    setAvatarPath(path);
+    setAvatarUrl(signed?.signedUrl ?? null);
+    setUploadingAvatar(false);
+    toast.success("Avatar updated");
+  }
+
+  async function removeAvatar() {
+    if (!user || !avatarPath) return;
+    setUploadingAvatar(true);
+    if (avatarPath.startsWith(`${user.id}/`)) {
+      await supabase.storage.from("avatars").remove([avatarPath]);
+    }
+    await supabase
+      .from("profiles")
+      .upsert({ id: user.id, email: user.email, avatar_url: null, updated_at: new Date().toISOString() }, { onConflict: "id" });
+    setAvatarPath(null);
+    setAvatarUrl(null);
+    setUploadingAvatar(false);
+    toast.success("Avatar removed");
+  }
+
   const set = (k: keyof ProfileFields) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setFields((f) => ({ ...f, [k]: e.target.value }));
 
@@ -183,21 +238,51 @@ function ProfilePage() {
       <main className="mx-auto max-w-2xl px-4 py-16">
         <div className="rounded-3xl border border-stone-200 bg-white p-8 shadow-sm">
           <div className="flex items-center gap-5">
-            {avatarUrl ? (
-              <img
-                src={avatarUrl}
-                alt=""
-                referrerPolicy="no-referrer"
-                className="size-20 rounded-full object-cover ring-2 ring-brand-mango/30"
+            <div className="relative">
+              {displayAvatar ? (
+                <img
+                  src={displayAvatar}
+                  alt=""
+                  referrerPolicy="no-referrer"
+                  className="size-20 rounded-full object-cover ring-2 ring-brand-mango/30"
+                />
+              ) : (
+                <div className="grid size-20 place-items-center rounded-full bg-brand-leaf text-2xl font-bold text-white ring-2 ring-brand-leaf/30">
+                  {initials(name)}
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingAvatar}
+                aria-label="Change avatar"
+                className="absolute -bottom-1 -right-1 grid size-7 place-items-center rounded-full bg-brand-ink text-white shadow ring-2 ring-white hover:opacity-90 disabled:opacity-50"
+              >
+                <Camera className="size-3.5" />
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={onAvatarChange}
               />
-            ) : (
-              <div className="grid size-20 place-items-center rounded-full bg-brand-leaf text-2xl font-bold text-white ring-2 ring-brand-leaf/30">
-                {initials(name)}
-              </div>
-            )}
+            </div>
             <div>
               <h1 className="font-display text-2xl font-bold">{name}</h1>
               <p className="text-sm text-stone-500">{user.email}</p>
+              <div className="mt-1 flex items-center gap-2 text-xs">
+                {uploadingAvatar && <span className="text-stone-500">Uploading…</span>}
+                {avatarPath && avatarPath.startsWith(`${user.id}/`) && !uploadingAvatar && (
+                  <button
+                    type="button"
+                    onClick={removeAvatar}
+                    className="inline-flex items-center gap-1 text-stone-500 hover:text-red-600"
+                  >
+                    <Trash2 className="size-3" /> Remove avatar
+                  </button>
+                )}
+              </div>
               {isAdmin && (
                 <span className="mt-2 inline-block rounded-full bg-brand-mango/10 px-3 py-0.5 text-xs font-semibold uppercase tracking-wider text-brand-mango">
                   Developer
