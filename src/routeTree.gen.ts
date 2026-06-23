@@ -15,7 +15,8 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
-import { Route as AuthenticatedDevRouteImport } from './routes/_authenticated/dev'
+import { Route as AuthenticatedDevIndexRouteImport } from './routes/_authenticated/dev.index'
+import { Route as AuthenticatedDevProductsRouteImport } from './routes/_authenticated/dev.products'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
@@ -46,27 +47,35 @@ const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedDevRoute = AuthenticatedDevRouteImport.update({
-  id: '/dev',
-  path: '/dev',
+const AuthenticatedDevIndexRoute = AuthenticatedDevIndexRouteImport.update({
+  id: '/dev/',
+  path: '/dev/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedDevProductsRoute =
+  AuthenticatedDevProductsRouteImport.update({
+    id: '/dev/products',
+    path: '/dev/products',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/contact': typeof ContactRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/dev': typeof AuthenticatedDevRoute
   '/profile': typeof AuthenticatedProfileRoute
+  '/dev/products': typeof AuthenticatedDevProductsRoute
+  '/dev/': typeof AuthenticatedDevIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/contact': typeof ContactRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/dev': typeof AuthenticatedDevRoute
   '/profile': typeof AuthenticatedProfileRoute
+  '/dev/products': typeof AuthenticatedDevProductsRoute
+  '/dev': typeof AuthenticatedDevIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -75,14 +84,29 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/contact': typeof ContactRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/_authenticated/dev': typeof AuthenticatedDevRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
+  '/_authenticated/dev/products': typeof AuthenticatedDevProductsRoute
+  '/_authenticated/dev/': typeof AuthenticatedDevIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/contact' | '/sitemap.xml' | '/dev' | '/profile'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/contact'
+    | '/sitemap.xml'
+    | '/profile'
+    | '/dev/products'
+    | '/dev/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/contact' | '/sitemap.xml' | '/dev' | '/profile'
+  to:
+    | '/'
+    | '/auth'
+    | '/contact'
+    | '/sitemap.xml'
+    | '/profile'
+    | '/dev/products'
+    | '/dev'
   id:
     | '__root__'
     | '/'
@@ -90,8 +114,9 @@ export interface FileRouteTypes {
     | '/auth'
     | '/contact'
     | '/sitemap.xml'
-    | '/_authenticated/dev'
     | '/_authenticated/profile'
+    | '/_authenticated/dev/products'
+    | '/_authenticated/dev/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -146,24 +171,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProfileRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/dev': {
-      id: '/_authenticated/dev'
+    '/_authenticated/dev/': {
+      id: '/_authenticated/dev/'
       path: '/dev'
-      fullPath: '/dev'
-      preLoaderRoute: typeof AuthenticatedDevRouteImport
+      fullPath: '/dev/'
+      preLoaderRoute: typeof AuthenticatedDevIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/dev/products': {
+      id: '/_authenticated/dev/products'
+      path: '/dev/products'
+      fullPath: '/dev/products'
+      preLoaderRoute: typeof AuthenticatedDevProductsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
-  AuthenticatedDevRoute: typeof AuthenticatedDevRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
+  AuthenticatedDevProductsRoute: typeof AuthenticatedDevProductsRoute
+  AuthenticatedDevIndexRoute: typeof AuthenticatedDevIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
-  AuthenticatedDevRoute: AuthenticatedDevRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
+  AuthenticatedDevProductsRoute: AuthenticatedDevProductsRoute,
+  AuthenticatedDevIndexRoute: AuthenticatedDevIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
@@ -179,13 +213,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

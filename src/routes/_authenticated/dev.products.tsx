@@ -1,18 +1,23 @@
-import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { createFileRoute, redirect, useNavigate, Link } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, useIsAdmin } from "@/hooks/use-auth";
-import { createProduct, deleteProduct, checkIsAdmin } from "@/lib/products.functions";
+import {
+  createProduct,
+  deleteProduct,
+  toggleProductStock,
+  checkIsAdmin,
+} from "@/lib/products.functions";
 import type { Product } from "@/components/ProductCard";
 import { toast } from "sonner";
-import { Trash2 } from "lucide-react";
+import { Trash2, ArrowLeft } from "lucide-react";
 
-export const Route = createFileRoute("/_authenticated/dev")({
-  head: () => ({ meta: [{ title: "Dev Dashboard — Deshi Cart" }] }),
+export const Route = createFileRoute("/_authenticated/dev/products")({
+  head: () => ({ meta: [{ title: "Manage Products — Deshi Cart" }] }),
   beforeLoad: async () => {
     try {
       const { isAdmin } = await checkIsAdmin();
@@ -22,14 +27,15 @@ export const Route = createFileRoute("/_authenticated/dev")({
       throw redirect({ to: "/profile" });
     }
   },
-  component: DevPage,
+  component: DevProductsPage,
 });
 
-function DevPage() {
+function DevProductsPage() {
   const { user } = useAuth();
   const { isAdmin, checked } = useIsAdmin(user);
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const [categoryFilter, setCategoryFilter] = useState<string>("All");
 
   useEffect(() => {
     if (checked && !isAdmin) navigate({ to: "/profile" });
@@ -49,8 +55,20 @@ function DevPage() {
     enabled: isAdmin,
   });
 
+  const categories = useMemo(() => {
+    const set = new Set<string>();
+    products.forEach((p) => set.add(p.category));
+    return ["All", ...Array.from(set).sort()];
+  }, [products]);
+
+  const filtered = useMemo(
+    () => (categoryFilter === "All" ? products : products.filter((p) => p.category === categoryFilter)),
+    [products, categoryFilter],
+  );
+
   const create = useServerFn(createProduct);
   const remove = useServerFn(deleteProduct);
+  const toggle = useServerFn(toggleProductStock);
 
   const createMut = useMutation({
     mutationFn: (data: any) => create({ data }),
@@ -65,6 +83,14 @@ function DevPage() {
     mutationFn: (id: string) => remove({ data: { id } }),
     onSuccess: () => {
       toast.success("Removed");
+      qc.invalidateQueries({ queryKey: ["products"] });
+    },
+    onError: (e: any) => toast.error("Failed", { description: e.message }),
+  });
+
+  const toggleMut = useMutation({
+    mutationFn: (vars: { id: string; in_stock: boolean }) => toggle({ data: vars }),
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["products"] });
     },
     onError: (e: any) => toast.error("Failed", { description: e.message }),
@@ -103,10 +129,33 @@ function DevPage() {
   return (
     <div className="min-h-screen bg-brand-surface font-sans text-brand-ink">
       <Header />
-      <main className="mx-auto max-w-6xl px-4 py-12">
-        <div className="mb-8 flex items-center gap-3">
-          <span className="inline-block size-2 animate-pulse rounded-full bg-brand-leaf" />
-          <h1 className="font-display text-3xl font-bold">Dev Dashboard</h1>
+      <main className="mx-auto max-w-7xl px-4 py-12">
+        <Link
+          to="/dev"
+          className="mb-4 inline-flex items-center gap-1 text-sm text-stone-500 hover:text-brand-ink"
+        >
+          <ArrowLeft className="size-3.5" /> Dashboard
+        </Link>
+        <div className="mb-8 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h1 className="font-display text-3xl font-bold">Products</h1>
+            <p className="text-sm text-stone-500">{products.length} total · {filtered.length} shown</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {categories.map((c) => (
+              <button
+                key={c}
+                onClick={() => setCategoryFilter(c)}
+                className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  categoryFilter === c
+                    ? "border-brand-ink bg-brand-ink text-white"
+                    : "border-stone-200 bg-white text-stone-600 hover:bg-stone-50"
+                }`}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="grid gap-8 lg:grid-cols-[380px_1fr]">
@@ -115,79 +164,36 @@ function DevPage() {
             className="space-y-4 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm h-fit"
           >
             <h2 className="font-display text-lg font-semibold">Add product</h2>
-
             <Field label="Name">
-              <input
-                type="text"
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="Mechanical Keyboard"
-                className="input"
-                required
-              />
+              <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Mechanical Keyboard" className="input" required />
             </Field>
             <Field label="Description">
-              <input
-                type="text"
-                value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
-                placeholder="Short tagline"
-                className="input"
-              />
+              <input type="text" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Short tagline" className="input" />
             </Field>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Price (৳)">
-                <input
-                  type="number"
-                  min={0}
-                  value={form.price_bdt}
-                  onChange={(e) => setForm({ ...form, price_bdt: e.target.value })}
-                  placeholder="3500"
-                  className="input"
-                  required
-                />
+                <input type="number" min={0} value={form.price_bdt} onChange={(e) => setForm({ ...form, price_bdt: e.target.value })} placeholder="3500" className="input" required />
               </Field>
               <Field label="Category">
-                <input
-                  type="text"
-                  value={form.category}
-                  onChange={(e) => setForm({ ...form, category: e.target.value })}
-                  className="input"
-                />
+                <input type="text" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="input" />
               </Field>
             </div>
             <Field label="Image URL (optional)">
-              <input
-                type="url"
-                value={form.image_url}
-                onChange={(e) => setForm({ ...form, image_url: e.target.value })}
-                placeholder="https://..."
-                className="input"
-              />
+              <input type="url" value={form.image_url} onChange={(e) => setForm({ ...form, image_url: e.target.value })} placeholder="https://..." className="input" />
             </Field>
             <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={form.in_stock}
-                onChange={(e) => setForm({ ...form, in_stock: e.target.checked })}
-                className="size-4 rounded accent-brand-mango"
-              />
+              <input type="checkbox" checked={form.in_stock} onChange={(e) => setForm({ ...form, in_stock: e.target.checked })} className="size-4 rounded accent-brand-mango" />
               In stock
             </label>
-            <button
-              type="submit"
-              disabled={createMut.isPending}
-              className="w-full rounded-xl bg-brand-ink py-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
-            >
+            <button type="submit" disabled={createMut.isPending} className="w-full rounded-xl bg-brand-ink py-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50">
               {createMut.isPending ? "Adding…" : "Add product"}
             </button>
-
             <style>{`.input{width:100%;border:1px solid #e7e5e4;border-radius:0.75rem;padding:0.625rem 0.875rem;font-size:0.875rem;background:#fff;outline:none}.input:focus{border-color:#f59e0b}`}</style>
           </form>
 
           <div className="rounded-2xl border border-stone-200 bg-white shadow-sm overflow-hidden">
             <div className="border-b border-stone-200 p-4">
-              <h2 className="font-display text-lg font-semibold">Inventory ({products.length})</h2>
+              <h2 className="font-display text-lg font-semibold">Inventory ({filtered.length})</h2>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
@@ -196,24 +202,34 @@ function DevPage() {
                     <th className="px-4 py-3">Product</th>
                     <th className="px-4 py-3">Category</th>
                     <th className="px-4 py-3">Price</th>
-                    <th className="px-4 py-3">Stock</th>
+                    <th className="px-4 py-3">Available</th>
                     <th className="px-4 py-3 text-right">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-stone-100">
-                  {products.map((p) => (
+                  {filtered.map((p) => (
                     <tr key={p.id}>
                       <td className="px-4 py-3 font-medium">{p.name}</td>
                       <td className="px-4 py-3 text-stone-500">{p.category}</td>
                       <td className="px-4 py-3 font-mono">৳{p.price_bdt.toLocaleString()}</td>
                       <td className="px-4 py-3">
-                        <span
-                          className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
-                            p.in_stock ? "bg-green-100 text-green-700" : "bg-stone-100 text-stone-500"
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={p.in_stock}
+                          disabled={toggleMut.isPending}
+                          onClick={() => toggleMut.mutate({ id: p.id, in_stock: !p.in_stock })}
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
+                            p.in_stock ? "bg-green-500" : "bg-stone-300"
                           }`}
+                          title={p.in_stock ? "In stock — click to mark out" : "Out — click to mark in stock"}
                         >
-                          {p.in_stock ? "In stock" : "Out"}
-                        </span>
+                          <span
+                            className={`inline-block size-4 transform rounded-full bg-white shadow transition-transform ${
+                              p.in_stock ? "translate-x-6" : "translate-x-1"
+                            }`}
+                          />
+                        </button>
                       </td>
                       <td className="px-4 py-3 text-right">
                         <button
@@ -227,10 +243,10 @@ function DevPage() {
                       </td>
                     </tr>
                   ))}
-                  {products.length === 0 && (
+                  {filtered.length === 0 && (
                     <tr>
                       <td colSpan={5} className="px-4 py-8 text-center text-stone-400">
-                        No products yet. Add one with the form.
+                        No products in this category.
                       </td>
                     </tr>
                   )}
