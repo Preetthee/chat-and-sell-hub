@@ -84,7 +84,7 @@ function Index() {
   );
 
   const setCategory = (next: string) =>
-    navigate({ search: (prev) => ({ ...prev, category: next }) });
+    navigate({ search: (prev: { category: string }) => ({ ...prev, category: next }) });
 
   return (
     <div className="min-h-screen bg-brand-surface font-sans text-brand-ink">
