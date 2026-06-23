@@ -125,7 +125,8 @@ function ProfilePage() {
     );
   }
 
-  const avatarUrl = (user.user_metadata?.avatar_url as string | undefined) || null;
+  const oauthAvatar = (user.user_metadata?.avatar_url as string | undefined) || null;
+  const displayAvatar = avatarUrl || oauthAvatar;
   const name =
     fields.display_name ||
     (user.user_metadata?.full_name as string | undefined) ||
