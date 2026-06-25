@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      dev_todos: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          details: string | null
+          id: string
+          sort_order: number
+          source: Database["public"]["Enums"]["dev_todo_source"]
+          status: Database["public"]["Enums"]["dev_todo_status"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          details?: string | null
+          id?: string
+          sort_order?: number
+          source?: Database["public"]["Enums"]["dev_todo_source"]
+          status?: Database["public"]["Enums"]["dev_todo_status"]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          details?: string | null
+          id?: string
+          sort_order?: number
+          source?: Database["public"]["Enums"]["dev_todo_source"]
+          status?: Database["public"]["Enums"]["dev_todo_status"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           category: string
@@ -128,6 +164,8 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user"
+      dev_todo_source: "user" | "auto"
+      dev_todo_status: "pending" | "in_progress" | "done" | "blocked"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -256,6 +294,8 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user"],
+      dev_todo_source: ["user", "auto"],
+      dev_todo_status: ["pending", "in_progress", "done", "blocked"],
     },
   },
 } as const
