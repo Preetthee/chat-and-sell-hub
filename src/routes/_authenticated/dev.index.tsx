@@ -2,7 +2,7 @@ import { createFileRoute, redirect, Link } from "@tanstack/react-router";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { checkIsAdmin } from "@/lib/products.functions";
-import { Package, User } from "lucide-react";
+import { Package, User, ListChecks } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/dev/")({
   head: () => ({ meta: [{ title: "Dev Dashboard — Deshi Cart" }] }),
@@ -38,6 +38,18 @@ function DevHome() {
             <h2 className="font-display text-lg font-semibold">Manage products</h2>
             <p className="mt-1 text-sm text-stone-500">
               Add new products, toggle availability, and remove items from the catalog.
+            </p>
+          </Link>
+          <Link
+            to="/dev/todos"
+            className="group rounded-2xl border border-stone-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md"
+          >
+            <div className="mb-3 grid size-10 place-items-center rounded-xl bg-violet-100 text-violet-700">
+              <ListChecks className="size-5" />
+            </div>
+            <h2 className="font-display text-lg font-semibold">Todo list</h2>
+            <p className="mt-1 text-sm text-stone-500">
+              Track open work. Say "continue with the work" to build the next item.
             </p>
           </Link>
           <Link
