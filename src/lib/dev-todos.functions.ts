@@ -70,7 +70,11 @@ export const updateDevTodo = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
-    const patch: Record<string, unknown> = {};
+    const patch: {
+      title?: string;
+      details?: string | null;
+      status?: "pending" | "in_progress" | "done" | "blocked";
+    } = {};
     if (data.title !== undefined) patch.title = data.title;
     if (data.details !== undefined) patch.details = data.details;
     if (data.status !== undefined) patch.status = data.status;
