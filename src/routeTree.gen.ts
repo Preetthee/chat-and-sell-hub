@@ -18,6 +18,7 @@ import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedDevIndexRouteImport } from './routes/_authenticated/dev.index'
 import { Route as AuthenticatedDevTodosRouteImport } from './routes/_authenticated/dev.todos'
 import { Route as AuthenticatedDevProductsRouteImport } from './routes/_authenticated/dev.products'
+import { Route as AuthenticatedDevAdminsRouteImport } from './routes/_authenticated/dev.admins'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
@@ -64,6 +65,11 @@ const AuthenticatedDevProductsRoute =
     path: '/dev/products',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedDevAdminsRoute = AuthenticatedDevAdminsRouteImport.update({
+  id: '/dev/admins',
+  path: '/dev/admins',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -71,6 +77,7 @@ export interface FileRoutesByFullPath {
   '/contact': typeof ContactRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/profile': typeof AuthenticatedProfileRoute
+  '/dev/admins': typeof AuthenticatedDevAdminsRoute
   '/dev/products': typeof AuthenticatedDevProductsRoute
   '/dev/todos': typeof AuthenticatedDevTodosRoute
   '/dev/': typeof AuthenticatedDevIndexRoute
@@ -81,6 +88,7 @@ export interface FileRoutesByTo {
   '/contact': typeof ContactRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/profile': typeof AuthenticatedProfileRoute
+  '/dev/admins': typeof AuthenticatedDevAdminsRoute
   '/dev/products': typeof AuthenticatedDevProductsRoute
   '/dev/todos': typeof AuthenticatedDevTodosRoute
   '/dev': typeof AuthenticatedDevIndexRoute
@@ -93,6 +101,7 @@ export interface FileRoutesById {
   '/contact': typeof ContactRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
+  '/_authenticated/dev/admins': typeof AuthenticatedDevAdminsRoute
   '/_authenticated/dev/products': typeof AuthenticatedDevProductsRoute
   '/_authenticated/dev/todos': typeof AuthenticatedDevTodosRoute
   '/_authenticated/dev/': typeof AuthenticatedDevIndexRoute
@@ -105,6 +114,7 @@ export interface FileRouteTypes {
     | '/contact'
     | '/sitemap.xml'
     | '/profile'
+    | '/dev/admins'
     | '/dev/products'
     | '/dev/todos'
     | '/dev/'
@@ -115,6 +125,7 @@ export interface FileRouteTypes {
     | '/contact'
     | '/sitemap.xml'
     | '/profile'
+    | '/dev/admins'
     | '/dev/products'
     | '/dev/todos'
     | '/dev'
@@ -126,6 +137,7 @@ export interface FileRouteTypes {
     | '/contact'
     | '/sitemap.xml'
     | '/_authenticated/profile'
+    | '/_authenticated/dev/admins'
     | '/_authenticated/dev/products'
     | '/_authenticated/dev/todos'
     | '/_authenticated/dev/'
@@ -204,11 +216,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDevProductsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/dev/admins': {
+      id: '/_authenticated/dev/admins'
+      path: '/dev/admins'
+      fullPath: '/dev/admins'
+      preLoaderRoute: typeof AuthenticatedDevAdminsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
+  AuthenticatedDevAdminsRoute: typeof AuthenticatedDevAdminsRoute
   AuthenticatedDevProductsRoute: typeof AuthenticatedDevProductsRoute
   AuthenticatedDevTodosRoute: typeof AuthenticatedDevTodosRoute
   AuthenticatedDevIndexRoute: typeof AuthenticatedDevIndexRoute
@@ -216,6 +236,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
+  AuthenticatedDevAdminsRoute: AuthenticatedDevAdminsRoute,
   AuthenticatedDevProductsRoute: AuthenticatedDevProductsRoute,
   AuthenticatedDevTodosRoute: AuthenticatedDevTodosRoute,
   AuthenticatedDevIndexRoute: AuthenticatedDevIndexRoute,
@@ -234,13 +255,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

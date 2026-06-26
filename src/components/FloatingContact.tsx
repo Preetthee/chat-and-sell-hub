@@ -1,9 +1,8 @@
 import { MessageCircle } from "lucide-react";
 
-// TODO: replace with real Messenger username/page link
 export const CONTACT = {
   whatsapp: "8801410533563",
-  messengerUrl: "https://m.me/your-page-username",
+  messengerUrl: "https://m.me/1222478777607742",
   email: "hello@example.com",
   phoneDisplay: "+880 14105 33563",
   address: "Dhaka, Bangladesh",

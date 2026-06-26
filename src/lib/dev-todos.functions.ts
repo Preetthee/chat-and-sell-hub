@@ -4,6 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const statusEnum = z.enum(["pending", "in_progress", "done", "blocked"]);
 const sourceEnum = z.enum(["user", "auto"]);
+const priorityEnum = z.enum(["p0", "p1", "p2", "p3"]);
 
 async function assertAdmin(ctx: { supabase: any; userId: string }) {
   const { data, error } = await ctx.supabase
@@ -21,8 +22,9 @@ export const listDevTodos = createServerFn({ method: "GET" })
     await assertAdmin(context);
     const { data, error } = await context.supabase
       .from("dev_todos")
-      .select("id, title, details, status, source, sort_order, created_at, updated_at")
+      .select("id, title, details, status, source, priority, sort_order, created_at, updated_at")
       .order("status", { ascending: true })
+      .order("priority", { ascending: true })
       .order("sort_order", { ascending: true })
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
@@ -37,6 +39,7 @@ export const createDevTodo = createServerFn({ method: "POST" })
         title: z.string().min(1).max(300),
         details: z.string().max(4000).optional().nullable(),
         source: sourceEnum.optional(),
+        priority: priorityEnum.optional(),
       })
       .parse(data),
   )
@@ -48,6 +51,7 @@ export const createDevTodo = createServerFn({ method: "POST" })
         title: data.title,
         details: data.details || null,
         source: data.source ?? "user",
+        priority: data.priority ?? "p2",
         created_by: context.userId,
       })
       .select()
@@ -65,6 +69,8 @@ export const updateDevTodo = createServerFn({ method: "POST" })
         title: z.string().min(1).max(300).optional(),
         details: z.string().max(4000).optional().nullable(),
         status: statusEnum.optional(),
+        priority: priorityEnum.optional(),
+        sort_order: z.number().int().optional(),
       })
       .parse(data),
   )
@@ -74,10 +80,14 @@ export const updateDevTodo = createServerFn({ method: "POST" })
       title?: string;
       details?: string | null;
       status?: "pending" | "in_progress" | "done" | "blocked";
+      priority?: "p0" | "p1" | "p2" | "p3";
+      sort_order?: number;
     } = {};
     if (data.title !== undefined) patch.title = data.title;
     if (data.details !== undefined) patch.details = data.details;
     if (data.status !== undefined) patch.status = data.status;
+    if (data.priority !== undefined) patch.priority = data.priority;
+    if (data.sort_order !== undefined) patch.sort_order = data.sort_order;
     const { error } = await context.supabase
       .from("dev_todos")
       .update(patch)
