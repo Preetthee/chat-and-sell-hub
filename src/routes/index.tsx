@@ -104,14 +104,14 @@ function Index() {
   }, [products, category, sort, lo, hi]);
 
   const setCategory = (next: string) =>
-    navigate({ search: (prev) => ({ ...prev, category: next }) });
+    navigate({ search: (prev: any) => ({ ...prev, category: next }) });
 
   const setSort = (next: "featured" | "price_asc" | "price_desc") =>
-    navigate({ search: (prev) => ({ ...prev, sort: next }) });
+    navigate({ search: (prev: any) => ({ ...prev, sort: next }) });
 
   const commitRange = (next: [number, number]) =>
     navigate({
-      search: (prev) => ({
+      search: (prev: any) => ({
         ...prev,
         minPrice: next[0] === bounds.min ? undefined : next[0],
         maxPrice: next[1] === bounds.max ? undefined : next[1],
