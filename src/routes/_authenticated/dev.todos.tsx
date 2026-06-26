@@ -12,9 +12,10 @@ import {
   deleteDevTodo,
 } from "@/lib/dev-todos.functions";
 import { toast } from "sonner";
-import { ArrowLeft, Trash2, Sparkles } from "lucide-react";
+import { ArrowLeft, Trash2, Sparkles, Copy, ArrowUp, ArrowDown } from "lucide-react";
 
 type Status = "pending" | "in_progress" | "done" | "blocked";
+type Priority = "p0" | "p1" | "p2" | "p3";
 
 const STATUS_LABEL: Record<Status, string> = {
   pending: "Pending",
@@ -29,6 +30,22 @@ const STATUS_STYLES: Record<Status, string> = {
   done: "bg-green-100 text-green-800",
   blocked: "bg-red-100 text-red-800",
 };
+
+const PRIORITY_LABEL: Record<Priority, string> = {
+  p0: "P0",
+  p1: "P1",
+  p2: "P2",
+  p3: "P3",
+};
+
+const PRIORITY_STYLES: Record<Priority, string> = {
+  p0: "bg-red-100 text-red-800 border-red-200",
+  p1: "bg-orange-100 text-orange-800 border-orange-200",
+  p2: "bg-blue-100 text-blue-800 border-blue-200",
+  p3: "bg-stone-100 text-stone-600 border-stone-200",
+};
+
+const CONTINUE_PHRASE = "Continue with the work.";
 
 export const Route = createFileRoute("/_authenticated/dev/todos")({
   head: () => ({ meta: [{ title: "Dev Todo List — Deshi Cart" }] }),
@@ -59,7 +76,8 @@ function DevTodosPage() {
   const invalidate = () => qc.invalidateQueries({ queryKey: ["dev-todos"] });
 
   const createMut = useMutation({
-    mutationFn: (data: { title: string; details?: string | null }) => create({ data }),
+    mutationFn: (data: { title: string; details?: string | null; priority?: Priority }) =>
+      create({ data }),
     onSuccess: () => {
       toast.success("Todo added");
       invalidate();
@@ -68,8 +86,14 @@ function DevTodosPage() {
   });
 
   const updateMut = useMutation({
-    mutationFn: (data: { id: string; status?: Status; title?: string; details?: string | null }) =>
-      update({ data }),
+    mutationFn: (data: {
+      id: string;
+      status?: Status;
+      title?: string;
+      details?: string | null;
+      priority?: Priority;
+      sort_order?: number;
+    }) => update({ data }),
     onSuccess: invalidate,
     onError: (e: any) => toast.error("Failed", { description: e.message }),
   });
@@ -85,23 +109,43 @@ function DevTodosPage() {
 
   const [title, setTitle] = useState("");
   const [details, setDetails] = useState("");
+  const [priority, setPriority] = useState<Priority>("p2");
+  const [filter, setFilter] = useState<"all" | Status>("all");
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim()) return;
-    createMut.mutate({ title: title.trim(), details: details.trim() || null });
+    createMut.mutate({ title: title.trim(), details: details.trim() || null, priority });
     setTitle("");
     setDetails("");
+    setPriority("p2");
   }
 
+  async function copyContinue() {
+    try {
+      await navigator.clipboard.writeText(CONTINUE_PHRASE);
+      toast.success("Copied!", { description: "Paste it in chat to start building." });
+    } catch {
+      toast.error("Copy failed");
+    }
+  }
+
+  const filteredTodos = filter === "all" ? todos : todos.filter((t: any) => t.status === filter);
   const grouped: Record<Status, typeof todos> = {
     pending: [],
     in_progress: [],
     blocked: [],
     done: [],
   };
-  todos.forEach((t) => grouped[t.status as Status].push(t));
+  filteredTodos.forEach((t: any) => grouped[t.status as Status].push(t));
   const order: Status[] = ["in_progress", "pending", "blocked", "done"];
+  const FILTERS: { value: typeof filter; label: string }[] = [
+    { value: "all", label: "All" },
+    { value: "pending", label: "Pending" },
+    { value: "in_progress", label: "In progress" },
+    { value: "blocked", label: "Blocked" },
+    { value: "done", label: "Done" },
+  ];
 
   return (
     <div className="min-h-screen bg-brand-surface font-sans text-brand-ink">
@@ -113,12 +157,21 @@ function DevTodosPage() {
         >
           <ArrowLeft className="size-3.5" /> Dashboard
         </Link>
-        <div className="mb-8">
-          <h1 className="font-display text-3xl font-bold">Dev Todo List</h1>
-          <p className="mt-1 text-sm text-stone-500">
-            Admin-only. Add tasks here; say "continue with the work" and I'll start
-            building from the open items.
-          </p>
+        <div className="mb-8 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="font-display text-3xl font-bold">Dev Todo List</h1>
+            <p className="mt-1 text-sm text-stone-500">
+              Admin-only. Add tasks here; click "Continue work" to copy the magic phrase.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={copyContinue}
+            title={`Copies "${CONTINUE_PHRASE}" — paste it in chat and I'll pick up the next open todo.`}
+            className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-violet-700"
+          >
+            <Copy className="size-4" /> Continue work
+          </button>
         </div>
 
         <form
@@ -140,20 +193,52 @@ function DevTodosPage() {
             rows={2}
             className="w-full rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-brand-mango"
           />
-          <button
-            type="submit"
-            disabled={createMut.isPending}
-            className="rounded-xl bg-brand-ink px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
-          >
-            {createMut.isPending ? "Adding…" : "Add todo"}
-          </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="flex items-center gap-2 text-xs font-semibold text-stone-600">
+              Priority
+              <select
+                value={priority}
+                onChange={(e) => setPriority(e.target.value as Priority)}
+                className="rounded-md border border-stone-200 bg-white px-2 py-1.5 text-xs outline-none focus:border-brand-mango"
+              >
+                <option value="p0">P0 — critical</option>
+                <option value="p1">P1 — high</option>
+                <option value="p2">P2 — normal</option>
+                <option value="p3">P3 — low</option>
+              </select>
+            </label>
+            <button
+              type="submit"
+              disabled={createMut.isPending}
+              className="ml-auto rounded-xl bg-brand-ink px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+            >
+              {createMut.isPending ? "Adding…" : "Add todo"}
+            </button>
+          </div>
         </form>
+
+        <div className="mb-6 -mx-1 flex gap-2 overflow-x-auto px-1 pb-2">
+          {FILTERS.map((f) => (
+            <button
+              key={f.value}
+              type="button"
+              onClick={() => setFilter(f.value)}
+              className={`shrink-0 rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
+                filter === f.value
+                  ? "border-brand-ink bg-brand-ink text-white"
+                  : "border-stone-200 bg-white text-stone-600 hover:bg-stone-50"
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
 
         {isLoading ? (
           <div className="py-12 text-center text-stone-400">Loading…</div>
-        ) : todos.length === 0 ? (
+        ) : filteredTodos.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-stone-300 bg-white p-12 text-center text-stone-500">
-            No todos yet. Add the first one above.
+            No todos to show.
           </div>
         ) : (
           <div className="space-y-8">
@@ -169,8 +254,9 @@ function DevTodosPage() {
                     <span className="text-stone-400">({items.length})</span>
                   </h2>
                   <ul className="space-y-2">
-                    {items.map((t) => {
+                    {items.map((t: any, idx: number) => {
                       const isDone = t.status === "done";
+                      const p = (t.priority ?? "p2") as Priority;
                       return (
                         <li
                           key={t.id}
@@ -199,22 +285,76 @@ function DevTodosPage() {
                           </button>
                           <div className="min-w-0 flex-1">
                             <div className="flex items-start justify-between gap-3">
-                              <p
-                                className={`text-sm font-medium ${
-                                  isDone ? "text-stone-400 line-through" : "text-brand-ink"
-                                }`}
-                              >
-                                {t.title}
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span
+                                  className={`inline-flex shrink-0 items-center rounded-md border px-1.5 py-0.5 text-[10px] font-bold ${PRIORITY_STYLES[p]}`}
+                                  title={`Priority ${PRIORITY_LABEL[p]}`}
+                                >
+                                  {PRIORITY_LABEL[p]}
+                                </span>
+                                <p
+                                  className={`text-sm font-medium ${
+                                    isDone ? "text-stone-400 line-through" : "text-brand-ink"
+                                  }`}
+                                >
+                                  {t.title}
+                                </p>
                                 {t.source === "auto" && (
                                   <span
                                     title="Added automatically from a stopped build"
-                                    className="ml-2 inline-flex items-center gap-1 rounded-full bg-violet-100 px-1.5 py-0.5 align-middle text-[10px] font-semibold text-violet-700"
+                                    className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-1.5 py-0.5 text-[10px] font-semibold text-violet-700"
                                   >
                                     <Sparkles className="size-2.5" /> auto
                                   </span>
                                 )}
-                              </p>
+                              </div>
                               <div className="flex shrink-0 items-center gap-2">
+                                <div className="flex flex-col">
+                                  <button
+                                    type="button"
+                                    disabled={idx === 0}
+                                    onClick={() =>
+                                      updateMut.mutate({
+                                        id: t.id,
+                                        sort_order: (t.sort_order ?? 0) - 1,
+                                      })
+                                    }
+                                    className="rounded p-0.5 text-stone-400 hover:bg-stone-100 hover:text-brand-ink disabled:opacity-30"
+                                    aria-label="Move up"
+                                  >
+                                    <ArrowUp className="size-3" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={idx === items.length - 1}
+                                    onClick={() =>
+                                      updateMut.mutate({
+                                        id: t.id,
+                                        sort_order: (t.sort_order ?? 0) + 1,
+                                      })
+                                    }
+                                    className="rounded p-0.5 text-stone-400 hover:bg-stone-100 hover:text-brand-ink disabled:opacity-30"
+                                    aria-label="Move down"
+                                  >
+                                    <ArrowDown className="size-3" />
+                                  </button>
+                                </div>
+                                <select
+                                  value={p}
+                                  onChange={(e) =>
+                                    updateMut.mutate({
+                                      id: t.id,
+                                      priority: e.target.value as Priority,
+                                    })
+                                  }
+                                  className="rounded-md border border-stone-200 bg-white px-2 py-1 text-xs outline-none focus:border-brand-mango"
+                                  aria-label="Priority"
+                                >
+                                  <option value="p0">P0</option>
+                                  <option value="p1">P1</option>
+                                  <option value="p2">P2</option>
+                                  <option value="p3">P3</option>
+                                </select>
                                 <select
                                   value={t.status}
                                   onChange={(e) =>
