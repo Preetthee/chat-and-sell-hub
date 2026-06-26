@@ -11,6 +11,52 @@ const productInput = z.object({
   in_stock: z.boolean(),
 });
 
+const listProductsInput = z.object({
+  category: z.string().max(80).optional(),
+  sort: z.enum(["featured", "price_asc", "price_desc"]).optional(),
+  minPrice: z.number().int().nonnegative().optional(),
+  maxPrice: z.number().int().nonnegative().optional(),
+});
+
+export const listProducts = createServerFn({ method: "GET" })
+  .inputValidator((d: unknown) => listProductsInput.parse(d ?? {}))
+  .handler(async ({ data }) => {
+    const { createClient } = await import("@supabase/supabase-js");
+    const supabase = createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_PUBLISHABLE_KEY!,
+      { auth: { persistSession: false, autoRefreshToken: false } },
+    );
+    let q = supabase
+      .from("products")
+      .select("id, name, description, price_bdt, image_url, category, in_stock");
+    if (data.category) q = q.eq("category", data.category);
+    if (typeof data.minPrice === "number") q = q.gte("price_bdt", data.minPrice);
+    if (typeof data.maxPrice === "number") q = q.lte("price_bdt", data.maxPrice);
+    if (data.sort === "price_asc") q = q.order("price_bdt", { ascending: true });
+    else if (data.sort === "price_desc") q = q.order("price_bdt", { ascending: false });
+    else q = q.order("sort_order", { ascending: true }).order("created_at", { ascending: false });
+    const { data: rows, error } = await q;
+    if (error) throw new Error(error.message);
+    return rows ?? [];
+  });
+
+export const getProductPriceBounds = createServerFn({ method: "GET" }).handler(async () => {
+  const { createClient } = await import("@supabase/supabase-js");
+  const supabase = createClient(
+    process.env.SUPABASE_URL!,
+    process.env.SUPABASE_PUBLISHABLE_KEY!,
+    { auth: { persistSession: false, autoRefreshToken: false } },
+  );
+  const { data, error } = await supabase
+    .from("products")
+    .select("price_bdt");
+  if (error) throw new Error(error.message);
+  const prices = (data ?? []).map((r: any) => r.price_bdt as number);
+  if (prices.length === 0) return { min: 0, max: 0 };
+  return { min: Math.min(...prices), max: Math.max(...prices) };
+});
+
 async function assertAdmin(ctx: { supabase: any; userId: string }) {
   const { data, error } = await ctx.supabase
     .from("user_roles")
