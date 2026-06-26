@@ -14,12 +14,43 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_audit_log: {
+        Row: {
+          action: string
+          actor_id: string
+          created_at: string
+          id: string
+          metadata: Json | null
+          target_email: string | null
+          target_user_id: string | null
+        }
+        Insert: {
+          action: string
+          actor_id: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          target_email?: string | null
+          target_user_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          target_email?: string | null
+          target_user_id?: string | null
+        }
+        Relationships: []
+      }
       dev_todos: {
         Row: {
           created_at: string
           created_by: string | null
           details: string | null
           id: string
+          priority: Database["public"]["Enums"]["dev_todo_priority"]
           sort_order: number
           source: Database["public"]["Enums"]["dev_todo_source"]
           status: Database["public"]["Enums"]["dev_todo_status"]
@@ -31,6 +62,7 @@ export type Database = {
           created_by?: string | null
           details?: string | null
           id?: string
+          priority?: Database["public"]["Enums"]["dev_todo_priority"]
           sort_order?: number
           source?: Database["public"]["Enums"]["dev_todo_source"]
           status?: Database["public"]["Enums"]["dev_todo_status"]
@@ -42,6 +74,7 @@ export type Database = {
           created_by?: string | null
           details?: string | null
           id?: string
+          priority?: Database["public"]["Enums"]["dev_todo_priority"]
           sort_order?: number
           source?: Database["public"]["Enums"]["dev_todo_source"]
           status?: Database["public"]["Enums"]["dev_todo_status"]
@@ -164,6 +197,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user"
+      dev_todo_priority: "p0" | "p1" | "p2" | "p3"
       dev_todo_source: "user" | "auto"
       dev_todo_status: "pending" | "in_progress" | "done" | "blocked"
     }
@@ -294,6 +328,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user"],
+      dev_todo_priority: ["p0", "p1", "p2", "p3"],
       dev_todo_source: ["user", "auto"],
       dev_todo_status: ["pending", "in_progress", "done", "blocked"],
     },
