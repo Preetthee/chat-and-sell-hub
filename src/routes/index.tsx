@@ -1,16 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { ProductCard, type Product } from "@/components/ProductCard";
 import { supabase } from "@/integrations/supabase/client";
+import { Slider } from "@/components/ui/slider";
 import mangoHero from "@/assets/mango-hero.jpg";
 
 const searchSchema = z.object({
   category: fallback(z.string(), "").default(""),
+  sort: fallback(z.enum(["featured", "price_asc", "price_desc"]), "featured").default("featured"),
+  minPrice: fallback(z.number().int().nonnegative().optional(), undefined),
+  maxPrice: fallback(z.number().int().nonnegative().optional(), undefined),
 });
 
 export const Route = createFileRoute("/")({
@@ -69,7 +73,7 @@ function useProducts() {
 
 function Index() {
   const { data: products = [], isLoading } = useProducts();
-  const { category } = Route.useSearch();
+  const { category, sort, minPrice, maxPrice } = Route.useSearch();
   const navigate = Route.useNavigate();
 
   const categories = useMemo(() => {
@@ -78,13 +82,41 @@ function Index() {
     return Array.from(set).sort();
   }, [products]);
 
-  const visible = useMemo(
-    () => (category ? products.filter((p) => p.category === category) : products),
-    [products, category],
-  );
+  const bounds = useMemo(() => {
+    if (products.length === 0) return { min: 0, max: 0 };
+    const prices = products.map((p) => p.price_bdt);
+    return { min: Math.min(...prices), max: Math.max(...prices) };
+  }, [products]);
+
+  const lo = minPrice ?? bounds.min;
+  const hi = maxPrice ?? bounds.max;
+  const [range, setRange] = useState<[number, number]>([lo, hi]);
+  useEffect(() => {
+    setRange([minPrice ?? bounds.min, maxPrice ?? bounds.max]);
+  }, [bounds.min, bounds.max, minPrice, maxPrice]);
+
+  const visible = useMemo(() => {
+    let list = category ? products.filter((p) => p.category === category) : products;
+    list = list.filter((p) => p.price_bdt >= lo && p.price_bdt <= hi);
+    if (sort === "price_asc") list = [...list].sort((a, b) => a.price_bdt - b.price_bdt);
+    else if (sort === "price_desc") list = [...list].sort((a, b) => b.price_bdt - a.price_bdt);
+    return list;
+  }, [products, category, sort, lo, hi]);
 
   const setCategory = (next: string) =>
-    navigate({ search: (prev: { category: string }) => ({ ...prev, category: next }) });
+    navigate({ search: (prev) => ({ ...prev, category: next }) });
+
+  const setSort = (next: "featured" | "price_asc" | "price_desc") =>
+    navigate({ search: (prev) => ({ ...prev, sort: next }) });
+
+  const commitRange = (next: [number, number]) =>
+    navigate({
+      search: (prev) => ({
+        ...prev,
+        minPrice: next[0] === bounds.min ? undefined : next[0],
+        maxPrice: next[1] === bounds.max ? undefined : next[1],
+      }),
+    });
 
   return (
     <div className="min-h-screen bg-brand-surface font-sans text-brand-ink">
@@ -120,11 +152,23 @@ function Index() {
 
       {/* Products */}
       <main className="mx-auto max-w-7xl px-4 py-12">
-        <div className="mb-8 flex items-end justify-between">
+        <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
           <div>
             <h2 className="font-display text-3xl font-bold">Tech Essentials</h2>
             <p className="text-stone-500">Fast delivery across Bangladesh</p>
           </div>
+          <label className="flex items-center gap-2 text-sm text-stone-600">
+            Sort
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value as any)}
+              className="rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm font-semibold outline-none focus:border-brand-mango"
+            >
+              <option value="featured">Featured</option>
+              <option value="price_asc">Price: Low → High</option>
+              <option value="price_desc">Price: High → Low</option>
+            </select>
+          </label>
         </div>
 
         {categories.length > 0 && (
@@ -157,6 +201,26 @@ function Index() {
           </div>
         )}
 
+        {bounds.max > bounds.min && (
+          <div className="mb-8 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
+            <div className="mb-2 flex items-center justify-between text-sm">
+              <span className="font-semibold text-stone-700">Price range</span>
+              <span className="tabular-nums text-stone-600">
+                ৳{range[0].toLocaleString()} – ৳{range[1].toLocaleString()}
+              </span>
+            </div>
+            <Slider
+              min={bounds.min}
+              max={bounds.max}
+              step={Math.max(1, Math.round((bounds.max - bounds.min) / 100))}
+              value={range}
+              onValueChange={(v) => setRange([v[0], v[1]] as [number, number])}
+              onValueCommit={(v) => commitRange([v[0], v[1]] as [number, number])}
+              className="py-2"
+            />
+          </div>
+        )}
+
         {isLoading ? (
           <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
             {Array.from({ length: 4 }).map((_, i) => (
@@ -165,7 +229,7 @@ function Index() {
           </div>
         ) : visible.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-stone-300 p-10 text-center text-stone-500">
-            No products in this category.
+            No products match these filters.
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
