@@ -1,42 +1,51 @@
-## Dev Todo List Feature
+Tackle the seven open dev todos in one pass. Mark each in the dev todo list as the work lands.
 
-A persistent task tracker visible only to developers (admins). You add items, I update statuses, and on "continue with the work" I implement the open items.
+## 1. Continue command + build-step tracking (dev)
+- Already partially built (the `/dev/todos` page accepts "continue" by you typing it to me). Formalize:
+  - Add a "Continue work" button on `/dev/todos` that copies the canonical phrase and shows a tooltip explaining what it does.
+  - When I finish a build pass, append any unfinished sub-steps as `source = 'auto'` todos (this is a workflow rule I'll follow going forward — no code needed beyond the existing `auto` badge).
 
-### 1. Grant dev access to preetthees@gmail.com
-- Migration: insert an `admin` row into `user_roles` for the user matching that email in `auth.users` (idempotent: `ON CONFLICT DO NOTHING`).
-- If that email hasn't signed up yet, the migration will no-op; we'll re-run after first sign-in.
+## 2. Harden dev access — admin management UI
+- New page `/dev/admins`:
+  - Lists current admins (email + granted date) by joining `user_roles` (role='admin') with `profiles`.
+  - "Grant admin by email" form and "Revoke" button per row (cannot revoke yourself).
+- New server functions in `src/lib/admins.functions.ts` (all `requireSupabaseAuth` + `assertAdmin`):
+  - `listAdmins`, `grantAdminByEmail(email)`, `revokeAdmin(userId)`.
+  - Lookup uses `supabaseAdmin` loaded inside the handler (auth.admin.listUsers / getUserByEmail) — admin-gated, so safe.
+- Audit log: insert into a new `admin_audit_log` table on each grant/revoke (who, target, action, timestamp).
+- Add card on `/dev` dashboard linking to `/dev/admins`.
 
-### 2. Database — `dev_todos` table
-Columns (besides id/created_at/updated_at):
-- `title` (text, required)
-- `details` (text, nullable) — for the "rest that wasn't built" notes
-- `status` (enum: `pending` | `in_progress` | `done` | `blocked`, default `pending`)
-- `source` (enum: `user` | `auto`, default `user`) — `auto` = added by me when a build stops mid-way
-- `sort_order` (int, default 0)
-- `created_by` (uuid, nullable)
+## 3. Todo improvements — priority (P0/P1/P2/P3) + better controls
+- DB: add `priority` enum `dev_todo_priority` (`p0`,`p1`,`p2`,`p3`, default `p2`) column on `dev_todos`.
+- Server fns: extend create/update to accept `priority`. Default ordering becomes status → priority → sort_order.
+- UI on `/dev/todos`:
+  - Priority dropdown on add form and inline on each row (color-coded chip: P0 red, P1 orange, P2 blue, P3 gray).
+  - Drag handle removed; instead use up/down arrows for sort within status.
+  - Filter chips: All / Pending / In progress / Blocked / Done.
 
-RLS: only `has_role(auth.uid(), 'admin')` can SELECT / INSERT / UPDATE / DELETE. GRANTs to `authenticated` + `service_role`. `updated_at` trigger.
+## 4. Facebook / Messenger link
+- Messenger: `https://m.me/1222478777607742` (provided).
+- Facebook page URL not provided — I'll only wire Messenger for now and add a follow-up `auto` todo to capture the FB page URL when you have it.
+- Placement: footer of the public site (`src/routes/__root.tsx` or shared footer component) as an icon button, plus a "Message us" button on the homepage hero.
 
-### 3. Server functions (`src/lib/dev-todos.functions.ts`)
-All admin-gated (`requireSupabaseAuth` + `has_role` check):
-- `listDevTodos`
-- `createDevTodo({ title, details? })`
-- `updateDevTodoStatus({ id, status })`
-- `updateDevTodo({ id, title?, details? })`
-- `deleteDevTodo({ id })`
+## 5. Product sorting (price asc / desc)
+- `src/routes/index.tsx`: add `sort` search param via zod validator (`featured` | `price_asc` | `price_desc`).
+- `listProducts` server fn accepts `sort` and applies `.order('price_bdt', { ascending })` accordingly.
+- UI: a `Select` next to the category chips with "Featured / Price: Low → High / Price: High → Low".
 
-### 4. UI — `/dev/todos` route (admin-gated, like `/dev/products`)
-- Table/list of todos grouped or sorted by status.
-- Each row: checkbox to toggle done (strike-through when done), status dropdown (pending/in progress/done/blocked), inline edit title, delete.
-- "Add todo" form at top (title + optional details).
-- Add a "Todo list" card on `/dev` dashboard linking here.
+## 6. Price range slider
+- Add `minPrice` / `maxPrice` to the same search params (numeric, clamped).
+- `listProducts` applies `.gte('price_bdt', min).lte('price_bdt', max)`.
+- UI: shadcn `Slider` (dual-thumb) above the grid, with current min/max in BDT shown. Computes the full range once from `getProductPriceBounds` server fn.
 
-### 5. Workflow behavior (how I use the list)
-- When you say **"continue with the work"**, I read open todos (`pending` + `in_progress` + `blocked`), pick the next actionable one(s), and implement. I mark items `done` as they complete and add any leftover scope as new `auto` todos (e.g. "Taskbar backend wiring — UI shipped, persistence pending").
-- If a build stops mid-feature in any future turn, I'll append the unfinished parts as `auto` todos so nothing is lost.
-- You can cross things out yourself via the UI; I'll also flip status from the server side as work lands.
+## Technical summary
+- **Migrations (1 file):** add `dev_todo_priority` enum + column; create `admin_audit_log` table with grants, RLS (admin-only via `has_role`), and updated_at trigger.
+- **New server fn files:** `src/lib/admins.functions.ts` (admin CRUD + audit), extension of `src/lib/dev-todos.functions.ts` (priority), extension of `src/lib/products.functions.ts` (sort + price range + bounds).
+- **New routes:** `src/routes/_authenticated/dev.admins.tsx`.
+- **Edited routes:** `src/routes/_authenticated/dev.index.tsx` (add Admins card, link to Todos), `src/routes/_authenticated/dev.todos.tsx` (priority UI, filters), `src/routes/index.tsx` (sort dropdown, price slider, search-param wiring), `src/routes/__root.tsx` or shared footer (Messenger link).
+- **Types:** regenerated Supabase types after migration.
 
-### Out of scope
-- Sharing todos with non-admin users.
-- Notifications / email digests.
-- Multiple lists / projects / tags (single global dev list for now).
+## Out of scope
+- Facebook page URL (waiting on you; auto-todo will be added).
+- Drag-and-drop reordering of todos (using up/down arrows instead).
+- Saved filter presets / per-user defaults.
