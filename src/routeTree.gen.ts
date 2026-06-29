@@ -14,6 +14,7 @@ import { Route as ContactRouteImport } from './routes/contact'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ProductIdRouteImport } from './routes/product.$id'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedDevIndexRouteImport } from './routes/_authenticated/dev.index'
 import { Route as AuthenticatedDevTodosRouteImport } from './routes/_authenticated/dev.todos'
@@ -42,6 +43,11 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProductIdRoute = ProductIdRouteImport.update({
+  id: '/product/$id',
+  path: '/product/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
@@ -77,6 +83,7 @@ export interface FileRoutesByFullPath {
   '/contact': typeof ContactRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/profile': typeof AuthenticatedProfileRoute
+  '/product/$id': typeof ProductIdRoute
   '/dev/admins': typeof AuthenticatedDevAdminsRoute
   '/dev/products': typeof AuthenticatedDevProductsRoute
   '/dev/todos': typeof AuthenticatedDevTodosRoute
@@ -88,6 +95,7 @@ export interface FileRoutesByTo {
   '/contact': typeof ContactRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/profile': typeof AuthenticatedProfileRoute
+  '/product/$id': typeof ProductIdRoute
   '/dev/admins': typeof AuthenticatedDevAdminsRoute
   '/dev/products': typeof AuthenticatedDevProductsRoute
   '/dev/todos': typeof AuthenticatedDevTodosRoute
@@ -101,6 +109,7 @@ export interface FileRoutesById {
   '/contact': typeof ContactRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
+  '/product/$id': typeof ProductIdRoute
   '/_authenticated/dev/admins': typeof AuthenticatedDevAdminsRoute
   '/_authenticated/dev/products': typeof AuthenticatedDevProductsRoute
   '/_authenticated/dev/todos': typeof AuthenticatedDevTodosRoute
@@ -114,6 +123,7 @@ export interface FileRouteTypes {
     | '/contact'
     | '/sitemap.xml'
     | '/profile'
+    | '/product/$id'
     | '/dev/admins'
     | '/dev/products'
     | '/dev/todos'
@@ -125,6 +135,7 @@ export interface FileRouteTypes {
     | '/contact'
     | '/sitemap.xml'
     | '/profile'
+    | '/product/$id'
     | '/dev/admins'
     | '/dev/products'
     | '/dev/todos'
@@ -137,6 +148,7 @@ export interface FileRouteTypes {
     | '/contact'
     | '/sitemap.xml'
     | '/_authenticated/profile'
+    | '/product/$id'
     | '/_authenticated/dev/admins'
     | '/_authenticated/dev/products'
     | '/_authenticated/dev/todos'
@@ -149,6 +161,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   ContactRoute: typeof ContactRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  ProductIdRoute: typeof ProductIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -186,6 +199,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/product/$id': {
+      id: '/product/$id'
+      path: '/product/$id'
+      fullPath: '/product/$id'
+      preLoaderRoute: typeof ProductIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/profile': {
@@ -251,6 +271,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   ContactRoute: ContactRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  ProductIdRoute: ProductIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
