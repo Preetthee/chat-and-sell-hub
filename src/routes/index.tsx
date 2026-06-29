@@ -218,6 +218,39 @@ function Index() {
               onValueCommit={(v) => commitRange([v[0], v[1]] as [number, number])}
               className="py-2"
             />
+            <div className="mt-3 flex items-center gap-2 text-xs">
+              <label className="flex flex-1 items-center gap-1 text-stone-500">
+                Min ৳
+                <input
+                  type="number"
+                  min={bounds.min}
+                  max={range[1]}
+                  value={range[0]}
+                  onChange={(e) => {
+                    const n = Math.max(bounds.min, Math.min(range[1], parseInt(e.target.value || "0", 10) || bounds.min));
+                    setRange([n, range[1]]);
+                  }}
+                  onBlur={() => commitRange(range)}
+                  className="w-full rounded-md border border-stone-200 px-2 py-1 text-sm tabular-nums outline-none focus:border-brand-mango"
+                />
+              </label>
+              <span className="text-stone-300">—</span>
+              <label className="flex flex-1 items-center gap-1 text-stone-500">
+                Max ৳
+                <input
+                  type="number"
+                  min={range[0]}
+                  max={bounds.max}
+                  value={range[1]}
+                  onChange={(e) => {
+                    const n = Math.min(bounds.max, Math.max(range[0], parseInt(e.target.value || "0", 10) || bounds.max));
+                    setRange([range[0], n]);
+                  }}
+                  onBlur={() => commitRange(range)}
+                  className="w-full rounded-md border border-stone-200 px-2 py-1 text-sm tabular-nums outline-none focus:border-brand-mango"
+                />
+              </label>
+            </div>
           </div>
         )}
 
