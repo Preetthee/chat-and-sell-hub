@@ -1,5 +1,6 @@
 import { useCart } from "@/lib/cart-store";
 import { useState } from "react";
+import { Link } from "@tanstack/react-router";
 
 export type Product = {
   id: string;
@@ -22,7 +23,11 @@ export function ProductCard({ product }: { product: Product }) {
       className="group flex flex-col"
       onTouchStart={() => hoverActive && setTouchHover((v) => !v)}
     >
-      <div className="relative mb-3 overflow-hidden rounded-2xl bg-white p-4 shadow-sm ring-1 ring-stone-200 transition-shadow group-hover:shadow-md">
+      <Link
+        to="/product/$id"
+        params={{ id: product.id }}
+        className="relative mb-3 block overflow-hidden rounded-2xl bg-white p-4 shadow-sm ring-1 ring-stone-200 transition-shadow group-hover:shadow-md"
+      >
         <div className="aspect-square w-full overflow-hidden rounded-xl bg-stone-50">
           {product.image_url ? (
             <img
@@ -49,8 +54,14 @@ export function ProductCard({ product }: { product: Product }) {
             </p>
           </div>
         )}
-      </div>
-      <h3 className="font-medium text-brand-ink">{product.name}</h3>
+      </Link>
+      <Link
+        to="/product/$id"
+        params={{ id: product.id }}
+        className="font-medium text-brand-ink hover:text-brand-mango"
+      >
+        <h3>{product.name}</h3>
+      </Link>
       {product.description ? (
         <p className="text-sm text-stone-500">{product.description}</p>
       ) : null}
