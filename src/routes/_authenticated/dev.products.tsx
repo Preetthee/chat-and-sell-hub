@@ -11,10 +11,11 @@ import {
   deleteProduct,
   toggleProductStock,
   checkIsAdmin,
+  updateProduct,
 } from "@/lib/products.functions";
 import type { Product } from "@/components/ProductCard";
 import { toast } from "sonner";
-import { Trash2, ArrowLeft } from "lucide-react";
+import { Trash2, ArrowLeft, Pencil, X } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/dev/products")({
   head: () => ({ meta: [{ title: "Manage Products — Deshi Cart" }] }),
@@ -36,6 +37,7 @@ function DevProductsPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [categoryFilter, setCategoryFilter] = useState<string>("All");
+  const [editing, setEditing] = useState<Product | null>(null);
 
   useEffect(() => {
     if (checked && !isAdmin) navigate({ to: "/profile" });
@@ -69,6 +71,7 @@ function DevProductsPage() {
   const create = useServerFn(createProduct);
   const remove = useServerFn(deleteProduct);
   const toggle = useServerFn(toggleProductStock);
+  const update = useServerFn(updateProduct);
 
   const createMut = useMutation({
     mutationFn: (data: any) => create({ data }),
@@ -92,6 +95,16 @@ function DevProductsPage() {
     mutationFn: (vars: { id: string; in_stock: boolean }) => toggle({ data: vars }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["products"] });
+    },
+    onError: (e: any) => toast.error("Failed", { description: e.message }),
+  });
+
+  const updateMut = useMutation({
+    mutationFn: (vars: any) => update({ data: vars }),
+    onSuccess: () => {
+      toast.success("Product updated");
+      qc.invalidateQueries({ queryKey: ["products"] });
+      setEditing(null);
     },
     onError: (e: any) => toast.error("Failed", { description: e.message }),
   });
@@ -233,6 +246,12 @@ function DevProductsPage() {
                       </td>
                       <td className="px-4 py-3 text-right">
                         <button
+                          onClick={() => setEditing(p)}
+                          className="mr-1 inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-stone-600 hover:bg-stone-100"
+                        >
+                          <Pencil className="size-3.5" /> Edit
+                        </button>
+                        <button
                           onClick={() => {
                             if (confirm(`Delete "${p.name}"?`)) deleteMut.mutate(p.id);
                           }}
@@ -257,6 +276,14 @@ function DevProductsPage() {
         </div>
       </main>
       <Footer />
+      {editing && (
+        <EditProductModal
+          product={editing}
+          onClose={() => setEditing(null)}
+          onSave={(patch) => updateMut.mutate({ id: editing.id, ...patch })}
+          saving={updateMut.isPending}
+        />
+      )}
     </div>
   );
 }
@@ -268,6 +295,96 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
         {label}
       </label>
       {children}
+    </div>
+  );
+}
+
+function EditProductModal({
+  product,
+  onClose,
+  onSave,
+  saving,
+}: {
+  product: Product;
+  onClose: () => void;
+  onSave: (patch: any) => void;
+  saving: boolean;
+}) {
+  const [f, setF] = useState({
+    name: product.name,
+    description: product.description ?? "",
+    price_bdt: String(product.price_bdt),
+    image_url: product.image_url ?? "",
+    category: product.category,
+    in_stock: product.in_stock,
+  });
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    const price = parseInt(f.price_bdt, 10);
+    if (!f.name || isNaN(price)) {
+      toast.error("Name and price are required");
+      return;
+    }
+    onSave({
+      name: f.name,
+      description: f.description || null,
+      price_bdt: price,
+      image_url: f.image_url || null,
+      category: f.category,
+      in_stock: f.in_stock,
+    });
+  }
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4"
+      onClick={onClose}
+    >
+      <form
+        onSubmit={submit}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-lg space-y-4 rounded-2xl bg-white p-6 shadow-2xl"
+      >
+        <div className="flex items-center justify-between">
+          <h2 className="font-display text-lg font-semibold">Edit product</h2>
+          <button type="button" onClick={onClose} className="rounded-md p-1 hover:bg-stone-100">
+            <X className="size-4" />
+          </button>
+        </div>
+        <Field label="Name">
+          <input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} className="input" required />
+        </Field>
+        <Field label="Description">
+          <textarea value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} className="input min-h-[80px]" />
+        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Price (৳)">
+            <input type="number" min={0} value={f.price_bdt} onChange={(e) => setF({ ...f, price_bdt: e.target.value })} className="input" required />
+          </Field>
+          <Field label="Category">
+            <input value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })} className="input" />
+          </Field>
+        </div>
+        <Field label="Image URL">
+          <input type="url" value={f.image_url} onChange={(e) => setF({ ...f, image_url: e.target.value })} placeholder="https://..." className="input" />
+        </Field>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={f.in_stock} onChange={(e) => setF({ ...f, in_stock: e.target.checked })} className="size-4 rounded accent-brand-mango" />
+          In stock
+        </label>
+        <div className="flex gap-2 pt-2">
+          <button type="button" onClick={onClose} className="flex-1 rounded-xl border border-stone-200 py-2.5 text-sm font-semibold hover:bg-stone-50">
+            Cancel
+          </button>
+          <button type="submit" disabled={saving} className="flex-1 rounded-xl bg-brand-ink py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50">
+            {saving ? "Saving…" : "Save changes"}
+          </button>
+        </div>
+        <style>{`.input{width:100%;border:1px solid #e7e5e4;border-radius:0.75rem;padding:0.625rem 0.875rem;font-size:0.875rem;background:#fff;outline:none}.input:focus{border-color:#f59e0b}`}</style>
+      </form>
     </div>
   );
 }
