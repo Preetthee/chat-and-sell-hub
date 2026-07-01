@@ -87,7 +87,7 @@ export const updateProduct = createServerFn({ method: "POST" })
     if (Object.keys(patch).length === 0) return { ok: true };
     const { error, data: row } = await context.supabase
       .from("products")
-      .update(patch)
+      .update(patch as any)
       .eq("id", id)
       .select()
       .single();
