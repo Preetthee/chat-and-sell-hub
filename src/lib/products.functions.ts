@@ -123,3 +123,76 @@ export const checkIsAdmin = createServerFn({ method: "GET" })
       .maybeSingle();
     return { isAdmin: !!data };
   });
+
+export const enhanceProduct = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        name: z.string().min(1).max(200),
+        description: z.string().max(2000).optional().nullable(),
+        category: z.string().max(80).optional().nullable(),
+        price_bdt: z.number().int().nonnegative().optional().nullable(),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const apiKey = process.env.LOVABLE_API_KEY;
+    if (!apiKey) throw new Error("AI is not configured (LOVABLE_API_KEY missing)");
+
+    const system = [
+      "You rewrite product listings for Deshi Cart, a Bangladesh e-commerce store (Rajshahi mangoes + consumer tech).",
+      'Output STRICT JSON only: {"name": string, "description": string}.',
+      "Rules:",
+      "- name: 3-8 words, natural, benefit-forward, no ALL CAPS, no emoji, no price.",
+      "- description: 1-3 short sentences (max ~280 chars), plain text, no markdown, no bullets, no emoji.",
+      "- Keep the same product intent and category. Never invent specs, warranty, or shipping claims.",
+      "- Write in clear friendly English suitable for a BD audience.",
+      "- Do NOT wrap the JSON in backticks or add prose.",
+    ].join("\n");
+
+    const userPrompt =
+      `Category: ${data.category ?? "unknown"}\n` +
+      (data.price_bdt != null ? `Price: ৳${data.price_bdt}\n` : "") +
+      `Current name: ${data.name}\n` +
+      (data.description ? `Current description: ${data.description}\n` : "") +
+      `Return the improved JSON.`;
+
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: userPrompt },
+        ],
+        response_format: { type: "json_object" },
+      }),
+    });
+
+    if (res.status === 429) throw new Error("AI is busy — try again in a moment.");
+    if (res.status === 402) throw new Error("AI credits exhausted for this workspace.");
+    if (!res.ok) throw new Error(`AI request failed (${res.status})`);
+
+    const json: any = await res.json();
+    const content: string = json?.choices?.[0]?.message?.content ?? "";
+    let parsed: { name?: string; description?: string } = {};
+    try {
+      parsed = JSON.parse(content);
+    } catch {
+      const m = content.match(/\{[\s\S]*\}/);
+      if (m) {
+        try {
+          parsed = JSON.parse(m[0]);
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+    return {
+      name: (parsed.name ?? data.name).toString().slice(0, 200),
+      description: (parsed.description ?? data.description ?? "").toString().slice(0, 1000),
+    };
+  });
