@@ -10,9 +10,10 @@ import {
   createDevTodo,
   updateDevTodo,
   deleteDevTodo,
+  enhanceDevTodo,
 } from "@/lib/dev-todos.functions";
 import { toast } from "sonner";
-import { ArrowLeft, Trash2, Sparkles, Copy, ArrowUp, ArrowDown } from "lucide-react";
+import { ArrowLeft, Trash2, Sparkles, Copy, ArrowUp, ArrowDown, Wand2 } from "lucide-react";
 
 type Status = "pending" | "in_progress" | "done" | "blocked";
 type Priority = "p0" | "p1" | "p2" | "p3";
@@ -67,6 +68,7 @@ function DevTodosPage() {
   const create = useServerFn(createDevTodo);
   const update = useServerFn(updateDevTodo);
   const remove = useServerFn(deleteDevTodo);
+  const enhance = useServerFn(enhanceDevTodo);
 
   const { data: todos = [], isLoading } = useQuery({
     queryKey: ["dev-todos"],
@@ -111,14 +113,49 @@ function DevTodosPage() {
   const [details, setDetails] = useState("");
   const [priority, setPriority] = useState<Priority>("p2");
   const [filter, setFilter] = useState<"all" | Status>("all");
+  const [enhancing, setEnhancing] = useState(false);
+  const [autoEnhance, setAutoEnhance] = useState(true);
 
-  function submit(e: React.FormEvent) {
+  async function runEnhance(): Promise<{ title: string; details: string } | null> {
+    if (!title.trim()) return null;
+    setEnhancing(true);
+    try {
+      const out = await enhance({
+        data: { title: title.trim(), details: details.trim() || null },
+      });
+      setTitle(out.title);
+      setDetails(out.details);
+      return out;
+    } catch (e: any) {
+      toast.error("AI enhance failed", { description: e.message });
+      return null;
+    } finally {
+      setEnhancing(false);
+    }
+  }
+
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim()) return;
-    createMut.mutate({ title: title.trim(), details: details.trim() || null, priority });
-    setTitle("");
-    setDetails("");
-    setPriority("p2");
+    let finalTitle = title.trim();
+    let finalDetails = details.trim() || null;
+    if (autoEnhance) {
+      const out = await runEnhance();
+      if (out) {
+        finalTitle = out.title;
+        finalDetails = out.details || null;
+      }
+    }
+    createMut.mutate(
+      { title: finalTitle, details: finalDetails, priority },
+      {
+        onSuccess: () => {
+          setTitle("");
+          setDetails("");
+          setPriority("p2");
+        },
+      },
+    );
   }
 
   async function copyContinue() {
@@ -207,12 +244,30 @@ function DevTodosPage() {
                 <option value="p3">P3 — low</option>
               </select>
             </label>
+            <label className="flex items-center gap-2 text-xs font-semibold text-stone-600">
+              <input
+                type="checkbox"
+                checked={autoEnhance}
+                onChange={(e) => setAutoEnhance(e.target.checked)}
+                className="size-3.5 rounded border-stone-300"
+              />
+              Auto-enhance with AI
+            </label>
+            <button
+              type="button"
+              onClick={runEnhance}
+              disabled={enhancing || !title.trim()}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-100 disabled:opacity-50"
+              title="Ask AI to sharpen the title and draft a plan"
+            >
+              <Wand2 className="size-3.5" /> {enhancing ? "Thinking…" : "Enhance"}
+            </button>
             <button
               type="submit"
-              disabled={createMut.isPending}
+              disabled={createMut.isPending || enhancing}
               className="ml-auto rounded-xl bg-brand-ink px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
             >
-              {createMut.isPending ? "Adding…" : "Add todo"}
+              {enhancing ? "Enhancing…" : createMut.isPending ? "Adding…" : "Add todo"}
             </button>
           </div>
         </form>
