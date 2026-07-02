@@ -12,10 +12,11 @@ import {
   toggleProductStock,
   checkIsAdmin,
   updateProduct,
+  enhanceProduct,
 } from "@/lib/products.functions";
 import type { Product } from "@/components/ProductCard";
 import { toast } from "sonner";
-import { Trash2, ArrowLeft, Pencil, X } from "lucide-react";
+import { Trash2, ArrowLeft, Pencil, X, Wand2 } from "lucide-react";
 import { AdminGate } from "@/components/AdminGate";
 
 export const Route = createFileRoute("/_authenticated/dev/products")({
