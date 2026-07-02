@@ -16,6 +16,7 @@ import {
 import type { Product } from "@/components/ProductCard";
 import { toast } from "sonner";
 import { Trash2, ArrowLeft, Pencil, X } from "lucide-react";
+import { AdminGate } from "@/components/AdminGate";
 
 export const Route = createFileRoute("/_authenticated/dev/products")({
   head: () => ({ meta: [{ title: "Manage Products — Deshi Cart" }] }),
@@ -28,7 +29,11 @@ export const Route = createFileRoute("/_authenticated/dev/products")({
       throw redirect({ to: "/profile" });
     }
   },
-  component: DevProductsPage,
+  component: () => (
+    <AdminGate>
+      <DevProductsPage />
+    </AdminGate>
+  ),
 });
 
 function DevProductsPage() {
