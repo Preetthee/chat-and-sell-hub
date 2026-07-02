@@ -14,6 +14,7 @@ import {
 } from "@/lib/dev-todos.functions";
 import { toast } from "sonner";
 import { ArrowLeft, Trash2, Sparkles, Copy, ArrowUp, ArrowDown, Wand2 } from "lucide-react";
+import { AdminGate } from "@/components/AdminGate";
 
 type Status = "pending" | "in_progress" | "done" | "blocked";
 type Priority = "p0" | "p1" | "p2" | "p3";
@@ -59,7 +60,11 @@ export const Route = createFileRoute("/_authenticated/dev/todos")({
       throw redirect({ to: "/profile" });
     }
   },
-  component: DevTodosPage,
+  component: () => (
+    <AdminGate>
+      <DevTodosPage />
+    </AdminGate>
+  ),
 });
 
 function DevTodosPage() {

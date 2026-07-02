@@ -8,6 +8,31 @@ import { toast } from "sonner";
 import { logAuth } from "@/lib/auth-log";
 import { Camera, Trash2 } from "lucide-react";
 
+// Reads first bytes of a File and returns a canonical MIME type only if it
+// matches a supported raster image format. Untrusted values (file.type,
+// file.name extension) are ignored — magic bytes are authoritative.
+async function sniffImageType(file: File): Promise<string | null> {
+  const head = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+  const b = (i: number) => head[i];
+  // JPEG: FF D8 FF
+  if (b(0) === 0xff && b(1) === 0xd8 && b(2) === 0xff) return "image/jpeg";
+  // PNG: 89 50 4E 47 0D 0A 1A 0A
+  if (
+    b(0) === 0x89 && b(1) === 0x50 && b(2) === 0x4e && b(3) === 0x47 &&
+    b(4) === 0x0d && b(5) === 0x0a && b(6) === 0x1a && b(7) === 0x0a
+  )
+    return "image/png";
+  // GIF: "GIF87a" or "GIF89a"
+  if (b(0) === 0x47 && b(1) === 0x49 && b(2) === 0x46 && b(3) === 0x38) return "image/gif";
+  // WEBP: "RIFF"...."WEBP"
+  if (
+    b(0) === 0x52 && b(1) === 0x49 && b(2) === 0x46 && b(3) === 0x46 &&
+    b(8) === 0x57 && b(9) === 0x45 && b(10) === 0x42 && b(11) === 0x50
+  )
+    return "image/webp";
+  return null;
+}
+
 export const Route = createFileRoute("/_authenticated/profile")({
   head: () => ({
     meta: [
@@ -182,12 +207,25 @@ function ProfilePage() {
       toast.error("Image must be under 5 MB");
       return;
     }
+    // Whitelist file type + extension. Browser-supplied file.type and file.name
+    // are both untrusted; verify magic bytes and only allow real image formats.
+    const MIME_TO_EXT: Record<string, string> = {
+      "image/jpeg": "jpg",
+      "image/png": "png",
+      "image/gif": "gif",
+      "image/webp": "webp",
+    };
+    const sniff = await sniffImageType(file);
+    if (!sniff) {
+      toast.error("Only JPG, PNG, GIF or WebP images are allowed.");
+      return;
+    }
+    const ext = MIME_TO_EXT[sniff];
     setUploadingAvatar(true);
-    const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
     const path = `${user.id}/avatar.${ext}`;
     const { error: upErr } = await supabase.storage
       .from("avatars")
-      .upload(path, file, { upsert: true, contentType: file.type });
+      .upload(path, file, { upsert: true, contentType: sniff });
     if (upErr) {
       setUploadingAvatar(false);
       toast.error("Upload failed", { description: upErr.message });

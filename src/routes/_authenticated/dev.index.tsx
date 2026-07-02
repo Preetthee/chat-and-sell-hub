@@ -2,6 +2,7 @@ import { createFileRoute, redirect, Link } from "@tanstack/react-router";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { checkIsAdmin } from "@/lib/products.functions";
+import { AdminGate } from "@/components/AdminGate";
 import { Package, User, ListChecks, ShieldCheck } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/dev/")({
@@ -15,7 +16,11 @@ export const Route = createFileRoute("/_authenticated/dev/")({
       throw redirect({ to: "/profile" });
     }
   },
-  component: DevHome,
+  component: () => (
+    <AdminGate>
+      <DevHome />
+    </AdminGate>
+  ),
 });
 
 function DevHome() {
