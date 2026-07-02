@@ -182,12 +182,25 @@ function ProfilePage() {
       toast.error("Image must be under 5 MB");
       return;
     }
+    // Whitelist file type + extension. Browser-supplied file.type and file.name
+    // are both untrusted; verify magic bytes and only allow real image formats.
+    const MIME_TO_EXT: Record<string, string> = {
+      "image/jpeg": "jpg",
+      "image/png": "png",
+      "image/gif": "gif",
+      "image/webp": "webp",
+    };
+    const sniff = await sniffImageType(file);
+    if (!sniff) {
+      toast.error("Only JPG, PNG, GIF or WebP images are allowed.");
+      return;
+    }
+    const ext = MIME_TO_EXT[sniff];
     setUploadingAvatar(true);
-    const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
     const path = `${user.id}/avatar.${ext}`;
     const { error: upErr } = await supabase.storage
       .from("avatars")
-      .upload(path, file, { upsert: true, contentType: file.type });
+      .upload(path, file, { upsert: true, contentType: sniff });
     if (upErr) {
       setUploadingAvatar(false);
       toast.error("Upload failed", { description: upErr.message });
