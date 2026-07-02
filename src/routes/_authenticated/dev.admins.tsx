@@ -13,6 +13,7 @@ import {
 } from "@/lib/admins.functions";
 import { toast } from "sonner";
 import { ArrowLeft, ShieldCheck, ShieldOff, UserPlus } from "lucide-react";
+import { AdminGate } from "@/components/AdminGate";
 
 export const Route = createFileRoute("/_authenticated/dev/admins")({
   head: () => ({ meta: [{ title: "Admin access — Deshi Cart" }] }),
@@ -25,7 +26,11 @@ export const Route = createFileRoute("/_authenticated/dev/admins")({
       throw redirect({ to: "/profile" });
     }
   },
-  component: DevAdminsPage,
+  component: () => (
+    <AdminGate>
+      <DevAdminsPage />
+    </AdminGate>
+  ),
 });
 
 function DevAdminsPage() {
