@@ -105,3 +105,75 @@ export const deleteDevTodo = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+export const enhanceDevTodo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        title: z.string().min(1).max(300),
+        details: z.string().max(4000).optional().nullable(),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const apiKey = process.env.LOVABLE_API_KEY;
+    if (!apiKey) throw new Error("AI is not configured (LOVABLE_API_KEY missing)");
+
+    const system = [
+      "You are a senior product engineer helping a solo founder plan build tasks for an e-commerce site called Deshi Cart (Bangladesh, Rajshahi mangoes + tech).",
+      "Given a rough todo, output STRICT JSON: {\"title\": string, \"details\": string}.",
+      "Rules:",
+      "- title: 4-10 words, imperative voice, concrete, no fluff, no emoji.",
+      "- details: markdown-free plain text, 3-8 short bullet lines starting with '- ' covering: goal, key sub-steps, acceptance criteria, and any edge cases.",
+      "- Keep the same intent as the user's input; do not invent unrelated scope.",
+      "- Do NOT wrap the JSON in backticks or add prose.",
+    ].join("\n");
+
+    const userPrompt =
+      `Rough title: ${data.title}\n` +
+      (data.details ? `Existing notes:\n${data.details}\n` : "") +
+      `Return the improved JSON.`;
+
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: userPrompt },
+        ],
+        response_format: { type: "json_object" },
+      }),
+    });
+
+    if (res.status === 429) throw new Error("AI is busy — try again in a moment.");
+    if (res.status === 402) throw new Error("AI credits exhausted for this workspace.");
+    if (!res.ok) throw new Error(`AI request failed (${res.status})`);
+
+    const json: any = await res.json();
+    const content: string = json?.choices?.[0]?.message?.content ?? "";
+    let parsed: { title?: string; details?: string } = {};
+    try {
+      parsed = JSON.parse(content);
+    } catch {
+      // Try to salvage a fenced JSON block
+      const m = content.match(/\{[\s\S]*\}/);
+      if (m) {
+        try {
+          parsed = JSON.parse(m[0]);
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+    return {
+      title: (parsed.title ?? data.title).toString().slice(0, 300),
+      details: (parsed.details ?? data.details ?? "").toString().slice(0, 4000),
+    };
+  });
