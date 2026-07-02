@@ -12,10 +12,11 @@ import {
   toggleProductStock,
   checkIsAdmin,
   updateProduct,
+  enhanceProduct,
 } from "@/lib/products.functions";
 import type { Product } from "@/components/ProductCard";
 import { toast } from "sonner";
-import { Trash2, ArrowLeft, Pencil, X } from "lucide-react";
+import { Trash2, ArrowLeft, Pencil, X, Wand2 } from "lucide-react";
 import { AdminGate } from "@/components/AdminGate";
 
 export const Route = createFileRoute("/_authenticated/dev/products")({
@@ -323,6 +324,33 @@ function EditProductModal({
     category: product.category,
     in_stock: product.in_stock,
   });
+  const enhance = useServerFn(enhanceProduct);
+  const [enhancing, setEnhancing] = useState(false);
+
+  async function runEnhance() {
+    if (!f.name) {
+      toast.error("Add a name first");
+      return;
+    }
+    setEnhancing(true);
+    try {
+      const price = parseInt(f.price_bdt, 10);
+      const out = await enhance({
+        data: {
+          name: f.name,
+          description: f.description || null,
+          category: f.category || null,
+          price_bdt: isNaN(price) ? null : price,
+        },
+      });
+      setF((prev) => ({ ...prev, name: out.name, description: out.description }));
+      toast.success("AI rewrote name & description");
+    } catch (e: any) {
+      toast.error("AI rewrite failed", { description: e.message });
+    } finally {
+      setEnhancing(false);
+    }
+  }
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -355,9 +383,21 @@ function EditProductModal({
       >
         <div className="flex items-center justify-between">
           <h2 className="font-display text-lg font-semibold">Edit product</h2>
-          <button type="button" onClick={onClose} className="rounded-md p-1 hover:bg-stone-100">
-            <X className="size-4" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={runEnhance}
+              disabled={enhancing || saving}
+              title="Rewrite name & description with AI"
+              className="inline-flex items-center gap-1 rounded-md border border-stone-200 px-2 py-1 text-xs font-semibold text-stone-700 hover:bg-stone-50 disabled:opacity-50"
+            >
+              <Wand2 className="size-3.5" />
+              {enhancing ? "Rewriting…" : "AI rewrite"}
+            </button>
+            <button type="button" onClick={onClose} className="rounded-md p-1 hover:bg-stone-100">
+              <X className="size-4" />
+            </button>
+          </div>
         </div>
         <Field label="Name">
           <input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} className="input" required />
