@@ -54,6 +54,16 @@ export function ProductCard({ product }: { product: Product }) {
             </p>
           </div>
         )}
+        {!hoverActive && !product.in_stock && (
+          <span className="absolute right-3 top-3 rounded-full bg-stone-900/85 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-white shadow">
+            Sold out
+          </span>
+        )}
+        {product.in_stock && (
+          <span className="absolute right-3 top-3 rounded-full bg-green-600/90 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-white shadow opacity-0 transition-opacity group-hover:opacity-100">
+            In stock
+          </span>
+        )}
       </Link>
       <Link
         to="/product/$id"
