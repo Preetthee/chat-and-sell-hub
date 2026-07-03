@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { toast } from "sonner";
 
 export type CartItem = {
   id: string;
@@ -47,7 +48,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
       if (existing) return prev.map((p) => p.id === item.id ? { ...p, qty: p.qty + 1 } : p);
       return [...prev, { ...item, qty: 1 }];
     });
-    setOpen(true);
+    toast.success(`Added ${item.name}`, {
+      action: { label: "View cart", onClick: () => setOpen(true) },
+    });
   };
   const remove: CartCtx["remove"] = (id) => setItems((p) => p.filter((i) => i.id !== id));
   const setQty: CartCtx["setQty"] = (id, qty) => setItems((p) =>
