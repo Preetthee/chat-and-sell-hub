@@ -16,6 +16,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { CartProvider } from "@/lib/cart-store";
 import { CartSidebar } from "@/components/CartSidebar";
+import { I18nProvider } from "@/lib/i18n";
 
 function NotFoundComponent() {
   return (
@@ -141,13 +142,15 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <CartProvider>
+      <I18nProvider>
+        <CartProvider>
         {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
         <Outlet />
         <CartSidebar />
         <FloatingContact />
         <Toaster />
-      </CartProvider>
+        </CartProvider>
+      </I18nProvider>
     </QueryClientProvider>
   );
 }
