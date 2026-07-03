@@ -2,9 +2,11 @@ import { Link } from "@tanstack/react-router";
 import { UserAvatar } from "./UserAvatar";
 import { ShoppingBag } from "lucide-react";
 import { useCart } from "@/lib/cart-store";
+import { LanguageToggle, useT } from "@/lib/i18n";
 
 export function Header() {
   const { count, setOpen } = useCart();
+  const { t } = useT();
   return (
     <nav className="sticky top-0 z-40 border-b border-stone-200 bg-brand-surface/90 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
@@ -19,12 +21,13 @@ export function Header() {
             to="/contact"
             className="hidden sm:inline text-sm font-medium text-stone-600 hover:text-brand-ink"
           >
-            Contact
+            {t("nav.contact")}
           </Link>
+          <LanguageToggle />
           <button
             type="button"
             onClick={() => setOpen(true)}
-            aria-label="Open cart"
+            aria-label={t("nav.openCart")}
             className="relative grid size-9 place-items-center rounded-full text-stone-700 hover:bg-stone-100"
           >
             <ShoppingBag className="size-5" />
