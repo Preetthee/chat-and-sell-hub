@@ -1,6 +1,7 @@
 import { useCart } from "@/lib/cart-store";
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
+import { useT } from "@/lib/i18n";
 
 export type Product = {
   id: string;
@@ -14,6 +15,7 @@ export type Product = {
 
 export function ProductCard({ product }: { product: Product }) {
   const { add } = useCart();
+  const { t } = useT();
   const isMango = product.category?.toLowerCase() === "mangoes";
   const [touchHover, setTouchHover] = useState(false);
   const hoverActive = isMango; // mango uses hover-overlay behavior
@@ -47,21 +49,21 @@ export function ProductCard({ product }: { product: Product }) {
             className={`pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-2xl bg-stone-900/85 px-4 text-center text-white opacity-0 backdrop-blur-sm transition-opacity duration-300 group-hover:opacity-100 ${touchHover ? "opacity-100" : ""}`}
           >
             <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-wider">
-              Season Ended
+              {t("card.seasonEnded")}
             </span>
-            <p className="font-display text-lg font-bold leading-tight">
-              All out.<br />Stay tuned next year.
+            <p className="font-display text-lg font-bold leading-tight whitespace-pre-line">
+              {t("card.allOut")}
             </p>
           </div>
         )}
         {!hoverActive && !product.in_stock && (
           <span className="absolute right-3 top-3 rounded-full bg-stone-900/85 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-white shadow">
-            Sold out
+            {t("card.soldOut")}
           </span>
         )}
         {product.in_stock && (
           <span className="absolute right-3 top-3 rounded-full bg-green-600/90 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-white shadow opacity-0 transition-opacity group-hover:opacity-100">
-            In stock
+            {t("card.inStock")}
           </span>
         )}
       </Link>
@@ -93,7 +95,7 @@ export function ProductCard({ product }: { product: Product }) {
             : "cursor-not-allowed bg-stone-100 text-stone-400"
         }`}
       >
-        {product.in_stock ? "Add to cart" : "Out of stock"}
+        {product.in_stock ? t("card.addToCart") : t("card.outOfStock")}
       </button>
     </div>
   );
