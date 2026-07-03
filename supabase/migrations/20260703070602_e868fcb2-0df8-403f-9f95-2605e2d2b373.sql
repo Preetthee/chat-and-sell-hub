@@ -1,0 +1,1 @@
+update dev_todos set status = 'done', updated_at = now() where id = '48084fa2-5fa0-4e95-a84f-0497db3541ab';
