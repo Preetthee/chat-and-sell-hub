@@ -3,9 +3,11 @@ import { Button } from "@/components/ui/button";
 import { Minus, Plus, Trash2 } from "lucide-react";
 import { useCart } from "@/lib/cart-store";
 import { whatsappLink } from "./FloatingContact";
+import { useT } from "@/lib/i18n";
 
 export function CartSidebar() {
   const { items, open, setOpen, setQty, remove, subtotal, clear } = useCart();
+  const { t } = useT();
 
   const checkout = () => {
     if (items.length === 0) return;
@@ -18,15 +20,15 @@ export function CartSidebar() {
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetContent side="right" className="flex w-full flex-col sm:max-w-md">
         <SheetHeader>
-          <SheetTitle className="font-display text-2xl">Your Cart</SheetTitle>
+          <SheetTitle className="font-display text-2xl">{t("cart.title")}</SheetTitle>
         </SheetHeader>
 
         <div className="-mx-6 flex-1 overflow-y-auto px-6 py-4">
           {items.length === 0 ? (
             <div className="grid h-full place-items-center text-center text-stone-500">
               <div>
-                <p className="font-medium">Your cart is empty</p>
-                <p className="mt-1 text-sm">Add some tech essentials to get started.</p>
+                <p className="font-medium">{t("cart.empty")}</p>
+                <p className="mt-1 text-sm">{t("cart.emptyHint")}</p>
               </div>
             </div>
           ) : (
@@ -45,7 +47,7 @@ export function CartSidebar() {
                       <span className="text-sm font-medium leading-tight">{i.name}</span>
                       <button
                         onClick={() => remove(i.id)}
-                        aria-label="Remove"
+                        aria-label={t("cart.remove")}
                         className="text-stone-400 hover:text-red-600"
                       >
                         <Trash2 className="size-4" />
@@ -56,7 +58,7 @@ export function CartSidebar() {
                       <button
                         onClick={() => setQty(i.id, i.qty - 1)}
                         className="grid size-7 place-items-center text-stone-600 hover:text-brand-ink"
-                        aria-label="Decrease"
+                        aria-label={t("cart.decrease")}
                       >
                         <Minus className="size-3" />
                       </button>
@@ -64,7 +66,7 @@ export function CartSidebar() {
                       <button
                         onClick={() => setQty(i.id, i.qty + 1)}
                         className="grid size-7 place-items-center text-stone-600 hover:text-brand-ink"
-                        aria-label="Increase"
+                        aria-label={t("cart.increase")}
                       >
                         <Plus className="size-3" />
                       </button>
@@ -79,14 +81,14 @@ export function CartSidebar() {
         {items.length > 0 && (
           <SheetFooter className="flex-col gap-2 border-t border-stone-200 pt-4 sm:flex-col sm:space-x-0">
             <div className="flex items-center justify-between text-base">
-              <span className="text-stone-600">Subtotal</span>
+              <span className="text-stone-600">{t("cart.subtotal")}</span>
               <span className="font-bold">৳{subtotal.toLocaleString()}</span>
             </div>
             <Button onClick={checkout} className="w-full bg-[#25D366] text-white hover:bg-[#1eb858]">
-              Checkout via WhatsApp
+              {t("cart.checkout")}
             </Button>
             <button onClick={clear} className="text-xs text-stone-400 hover:text-stone-600">
-              Clear cart
+              {t("cart.clear")}
             </button>
           </SheetFooter>
         )}

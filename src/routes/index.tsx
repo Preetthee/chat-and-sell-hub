@@ -9,6 +9,7 @@ import { ProductCard, type Product } from "@/components/ProductCard";
 import { supabase } from "@/integrations/supabase/client";
 import { Slider } from "@/components/ui/slider";
 import mangoHero from "@/assets/mango-hero.jpg";
+import { useT } from "@/lib/i18n";
 
 const searchSchema = z.object({
   category: fallback(z.string(), "").default(""),
@@ -75,6 +76,7 @@ function Index() {
   const { data: products = [], isLoading } = useProducts();
   const { category, sort, minPrice, maxPrice } = Route.useSearch();
   const navigate = Route.useNavigate();
+  const { t } = useT();
 
   const categories = useMemo(() => {
     const set = new Set<string>();
@@ -136,15 +138,13 @@ function Index() {
           <div className="absolute inset-0 bg-gradient-to-t from-stone-900 via-stone-900/40 to-transparent" />
           <div className="relative z-10 flex flex-col items-center justify-center px-6 py-20 text-center md:py-28">
             <span className="mb-4 inline-block rounded-full border border-white/20 bg-white/10 px-4 py-1 text-xs font-semibold uppercase tracking-wider backdrop-blur-sm">
-              Harvest Season Ended
+              {t("hero.badge")}
             </span>
-            <h1 className="mb-4 font-display text-4xl font-extrabold leading-tight md:text-6xl">
-              Deshi Cart — Tech Essentials
-              <br />
-              and Premium Rajshahi Mangoes
+            <h1 className="mb-4 whitespace-pre-line font-display text-4xl font-extrabold leading-tight md:text-6xl">
+              {t("hero.title")}
             </h1>
             <p className="max-w-md text-stone-200">
-              Our premium Rajshahi mangoes are sold out for this season. See you next May! Meanwhile, browse our tech essentials below.
+              {t("hero.subtitle")}
             </p>
           </div>
         </div>
@@ -154,19 +154,19 @@ function Index() {
       <main className="mx-auto max-w-7xl px-4 py-12">
         <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h2 className="font-display text-3xl font-bold">Tech Essentials</h2>
-            <p className="text-stone-500">Fast delivery across Bangladesh</p>
+            <h2 className="font-display text-3xl font-bold">{t("products.heading")}</h2>
+            <p className="text-stone-500">{t("products.tagline")}</p>
           </div>
           <label className="flex items-center gap-2 text-sm text-stone-600">
-            Sort
+            {t("products.sort")}
             <select
               value={sort}
               onChange={(e) => setSort(e.target.value as any)}
               className="rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm font-semibold outline-none focus:border-brand-mango"
             >
-              <option value="featured">Featured</option>
-              <option value="price_asc">Price: Low → High</option>
-              <option value="price_desc">Price: High → Low</option>
+              <option value="featured">{t("products.sort.featured")}</option>
+              <option value="price_asc">{t("products.sort.priceAsc")}</option>
+              <option value="price_desc">{t("products.sort.priceDesc")}</option>
             </select>
           </label>
         </div>
@@ -182,7 +182,7 @@ function Index() {
                   : "border-stone-200 bg-white text-stone-600 hover:bg-stone-50"
               }`}
             >
-              All
+              {t("products.all")}
             </button>
             {categories.map((c) => (
               <button
@@ -204,7 +204,7 @@ function Index() {
         {bounds.max > bounds.min && (
           <div className="mb-8 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
             <div className="mb-2 flex items-center justify-between text-sm">
-              <span className="font-semibold text-stone-700">Price range</span>
+              <span className="font-semibold text-stone-700">{t("products.priceRange")}</span>
               <span className="tabular-nums text-stone-600">
                 ৳{range[0].toLocaleString()} – ৳{range[1].toLocaleString()}
               </span>
@@ -220,7 +220,7 @@ function Index() {
             />
             <div className="mt-3 flex items-center gap-2 text-xs">
               <label className="flex flex-1 items-center gap-1 text-stone-500">
-                Min ৳
+                {t("products.min")} ৳
                 <input
                   type="number"
                   min={bounds.min}
@@ -236,7 +236,7 @@ function Index() {
               </label>
               <span className="text-stone-300">—</span>
               <label className="flex flex-1 items-center gap-1 text-stone-500">
-                Max ৳
+                {t("products.max")} ৳
                 <input
                   type="number"
                   min={range[0]}
@@ -262,7 +262,7 @@ function Index() {
           </div>
         ) : visible.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-stone-300 p-10 text-center text-stone-500">
-            No products match these filters.
+            {t("products.empty")}
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
