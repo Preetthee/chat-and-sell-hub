@@ -163,7 +163,7 @@ function DevProductsPage() {
     onError: (e: any) => toast.error("Failed", { description: e.message }),
   });
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<ProductForm>({
     name: "",
     description: "",
     price_bdt: "",
@@ -171,23 +171,42 @@ function DevProductsPage() {
     category: "Electronics",
     in_stock: true,
   });
+  const [errors, setErrors] = useState<FieldErrors>({});
+
+  function updateForm(patch: Partial<ProductForm>) {
+    setForm((prev) => {
+      const next = { ...prev, ...patch };
+      // clear errors on the fields being edited
+      if (Object.keys(errors).length > 0) {
+        setErrors((prevErrs) => {
+          const nextErrs = { ...prevErrs };
+          for (const k of Object.keys(patch)) delete nextErrs[k as keyof ProductForm];
+          return nextErrs;
+        });
+      }
+      return next;
+    });
+  }
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    const price = parseInt(form.price_bdt, 10);
-    if (!form.name || isNaN(price)) {
-      toast.error("Name and price are required");
+    const errs = validateProductForm(form);
+    setErrors(errs);
+    if (Object.keys(errs).length > 0) {
+      toast.error("Please fix the highlighted fields");
       return;
     }
+    const price = parseInt(form.price_bdt, 10);
     createMut.mutate({
-      name: form.name,
-      description: form.description || null,
+      name: form.name.trim(),
+      description: form.description.trim() || null,
       price_bdt: price,
-      image_url: form.image_url || null,
-      category: form.category,
+      image_url: form.image_url.trim() || null,
+      category: form.category.trim(),
       in_stock: form.in_stock,
     });
     setForm({ name: "", description: "", price_bdt: "", image_url: "", category: "Electronics", in_stock: true });
+    setErrors({});
   }
 
   if (!checked) return <div className="p-10 text-center text-stone-400">Checking access…</div>;
@@ -231,22 +250,22 @@ function DevProductsPage() {
             className="space-y-4 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm h-fit"
           >
             <h2 className="font-display text-lg font-semibold">Add product</h2>
-            <Field label="Name">
-              <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Mechanical Keyboard" className="input" required />
+            <Field label="Name" error={errors.name}>
+              <input type="text" value={form.name} onChange={(e) => updateForm({ name: e.target.value })} placeholder="Mechanical Keyboard" className="input" aria-invalid={!!errors.name} maxLength={100} />
             </Field>
-            <Field label="Description">
-              <input type="text" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Short tagline" className="input" />
+            <Field label="Description" error={errors.description}>
+              <input type="text" value={form.description} onChange={(e) => updateForm({ description: e.target.value })} placeholder="Short tagline" className="input" aria-invalid={!!errors.description} maxLength={500} />
             </Field>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Price (৳)">
-                <input type="number" min={0} value={form.price_bdt} onChange={(e) => setForm({ ...form, price_bdt: e.target.value })} placeholder="3500" className="input" required />
+              <Field label="Price (৳)" error={errors.price_bdt}>
+                <input type="number" min={0} value={form.price_bdt} onChange={(e) => updateForm({ price_bdt: e.target.value })} placeholder="3500" className="input" aria-invalid={!!errors.price_bdt} inputMode="numeric" />
               </Field>
-              <Field label="Category">
-                <input type="text" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="input" />
+              <Field label="Category" error={errors.category}>
+                <input type="text" value={form.category} onChange={(e) => updateForm({ category: e.target.value })} className="input" aria-invalid={!!errors.category} maxLength={40} />
               </Field>
             </div>
-            <Field label="Image URL (optional)">
-              <input type="url" value={form.image_url} onChange={(e) => setForm({ ...form, image_url: e.target.value })} placeholder="https://..." className="input" />
+            <Field label="Image URL (optional)" error={errors.image_url}>
+              <input type="url" value={form.image_url} onChange={(e) => updateForm({ image_url: e.target.value })} placeholder="https://..." className="input" aria-invalid={!!errors.image_url} />
             </Field>
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={form.in_stock} onChange={(e) => setForm({ ...form, in_stock: e.target.checked })} className="size-4 rounded accent-brand-mango" />
@@ -342,13 +361,18 @@ function DevProductsPage() {
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children, error }: { label: string; children: React.ReactNode; error?: string }) {
   return (
     <div>
       <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-stone-500">
         {label}
       </label>
       {children}
+      {error ? (
+        <p role="alert" className="mt-1 text-xs font-medium text-red-600">
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }
