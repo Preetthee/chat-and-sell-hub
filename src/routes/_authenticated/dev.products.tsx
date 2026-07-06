@@ -19,6 +19,54 @@ import { toast } from "sonner";
 import { Trash2, ArrowLeft, Pencil, X, Wand2 } from "lucide-react";
 import { AdminGate } from "@/components/AdminGate";
 
+type ProductForm = {
+  name: string;
+  description: string;
+  price_bdt: string;
+  image_url: string;
+  category: string;
+  in_stock: boolean;
+};
+
+type FieldErrors = Partial<Record<keyof ProductForm, string>>;
+
+function validateProductForm(f: ProductForm): FieldErrors {
+  const errs: FieldErrors = {};
+  const name = f.name.trim();
+  if (!name) errs.name = "Name is required.";
+  else if (name.length < 2) errs.name = "Name must be at least 2 characters.";
+  else if (name.length > 100) errs.name = "Name must be 100 characters or fewer.";
+
+  if (f.description && f.description.length > 500)
+    errs.description = "Description must be 500 characters or fewer.";
+
+  const priceRaw = f.price_bdt.trim();
+  if (!priceRaw) errs.price_bdt = "Price is required.";
+  else if (!/^\d+$/.test(priceRaw)) errs.price_bdt = "Price must be a whole number in BDT.";
+  else {
+    const n = parseInt(priceRaw, 10);
+    if (n < 0) errs.price_bdt = "Price cannot be negative.";
+    else if (n > 10_000_000) errs.price_bdt = "Price seems too large (max ৳10,000,000).";
+  }
+
+  const cat = f.category.trim();
+  if (!cat) errs.category = "Category is required.";
+  else if (cat.length > 40) errs.category = "Category must be 40 characters or fewer.";
+
+  const url = f.image_url.trim();
+  if (url) {
+    try {
+      const u = new URL(url);
+      if (u.protocol !== "https:" && u.protocol !== "http:")
+        errs.image_url = "Image URL must start with http:// or https://";
+    } catch {
+      errs.image_url = "Enter a valid URL (e.g. https://…).";
+    }
+  }
+
+  return errs;
+}
+
 export const Route = createFileRoute("/_authenticated/dev/products")({
   head: () => ({ meta: [{ title: "Manage Products — Deshi Cart" }] }),
   beforeLoad: async () => {
