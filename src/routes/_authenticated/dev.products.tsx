@@ -274,7 +274,7 @@ function DevProductsPage() {
             <button type="submit" disabled={createMut.isPending} className="w-full rounded-xl bg-brand-ink py-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50">
               {createMut.isPending ? "Adding…" : "Add product"}
             </button>
-            <style>{`.input{width:100%;border:1px solid #e7e5e4;border-radius:0.75rem;padding:0.625rem 0.875rem;font-size:0.875rem;background:#fff;outline:none}.input:focus{border-color:#f59e0b}`}</style>
+            <style>{`.input{width:100%;border:1px solid #e7e5e4;border-radius:0.75rem;padding:0.625rem 0.875rem;font-size:0.875rem;background:#fff;outline:none}.input:focus{border-color:#f59e0b}.input[aria-invalid="true"]{border-color:#dc2626}.input[aria-invalid="true"]:focus{border-color:#dc2626}`}</style>
           </form>
 
           <div className="rounded-2xl border border-stone-200 bg-white shadow-sm overflow-hidden">
@@ -512,7 +512,7 @@ function EditProductModal({
             {saving ? "Saving…" : "Save changes"}
           </button>
         </div>
-        <style>{`.input{width:100%;border:1px solid #e7e5e4;border-radius:0.75rem;padding:0.625rem 0.875rem;font-size:0.875rem;background:#fff;outline:none}.input:focus{border-color:#f59e0b}`}</style>
+        <style>{`.input{width:100%;border:1px solid #e7e5e4;border-radius:0.75rem;padding:0.625rem 0.875rem;font-size:0.875rem;background:#fff;outline:none}.input:focus{border-color:#f59e0b}.input[aria-invalid="true"]{border-color:#dc2626}.input[aria-invalid="true"]:focus{border-color:#dc2626}`}</style>
       </form>
     </div>
   );
