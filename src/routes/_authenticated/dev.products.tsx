@@ -19,6 +19,54 @@ import { toast } from "sonner";
 import { Trash2, ArrowLeft, Pencil, X, Wand2 } from "lucide-react";
 import { AdminGate } from "@/components/AdminGate";
 
+type ProductForm = {
+  name: string;
+  description: string;
+  price_bdt: string;
+  image_url: string;
+  category: string;
+  in_stock: boolean;
+};
+
+type FieldErrors = Partial<Record<keyof ProductForm, string>>;
+
+function validateProductForm(f: ProductForm): FieldErrors {
+  const errs: FieldErrors = {};
+  const name = f.name.trim();
+  if (!name) errs.name = "Name is required.";
+  else if (name.length < 2) errs.name = "Name must be at least 2 characters.";
+  else if (name.length > 100) errs.name = "Name must be 100 characters or fewer.";
+
+  if (f.description && f.description.length > 500)
+    errs.description = "Description must be 500 characters or fewer.";
+
+  const priceRaw = f.price_bdt.trim();
+  if (!priceRaw) errs.price_bdt = "Price is required.";
+  else if (!/^\d+$/.test(priceRaw)) errs.price_bdt = "Price must be a whole number in BDT.";
+  else {
+    const n = parseInt(priceRaw, 10);
+    if (n < 0) errs.price_bdt = "Price cannot be negative.";
+    else if (n > 10_000_000) errs.price_bdt = "Price seems too large (max ৳10,000,000).";
+  }
+
+  const cat = f.category.trim();
+  if (!cat) errs.category = "Category is required.";
+  else if (cat.length > 40) errs.category = "Category must be 40 characters or fewer.";
+
+  const url = f.image_url.trim();
+  if (url) {
+    try {
+      const u = new URL(url);
+      if (u.protocol !== "https:" && u.protocol !== "http:")
+        errs.image_url = "Image URL must start with http:// or https://";
+    } catch {
+      errs.image_url = "Enter a valid URL (e.g. https://…).";
+    }
+  }
+
+  return errs;
+}
+
 export const Route = createFileRoute("/_authenticated/dev/products")({
   head: () => ({ meta: [{ title: "Manage Products — Deshi Cart" }] }),
   beforeLoad: async () => {
@@ -115,7 +163,7 @@ function DevProductsPage() {
     onError: (e: any) => toast.error("Failed", { description: e.message }),
   });
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<ProductForm>({
     name: "",
     description: "",
     price_bdt: "",
@@ -123,23 +171,42 @@ function DevProductsPage() {
     category: "Electronics",
     in_stock: true,
   });
+  const [errors, setErrors] = useState<FieldErrors>({});
+
+  function updateForm(patch: Partial<ProductForm>) {
+    setForm((prev) => {
+      const next = { ...prev, ...patch };
+      // clear errors on the fields being edited
+      if (Object.keys(errors).length > 0) {
+        setErrors((prevErrs) => {
+          const nextErrs = { ...prevErrs };
+          for (const k of Object.keys(patch)) delete nextErrs[k as keyof ProductForm];
+          return nextErrs;
+        });
+      }
+      return next;
+    });
+  }
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    const price = parseInt(form.price_bdt, 10);
-    if (!form.name || isNaN(price)) {
-      toast.error("Name and price are required");
+    const errs = validateProductForm(form);
+    setErrors(errs);
+    if (Object.keys(errs).length > 0) {
+      toast.error("Please fix the highlighted fields");
       return;
     }
+    const price = parseInt(form.price_bdt, 10);
     createMut.mutate({
-      name: form.name,
-      description: form.description || null,
+      name: form.name.trim(),
+      description: form.description.trim() || null,
       price_bdt: price,
-      image_url: form.image_url || null,
-      category: form.category,
+      image_url: form.image_url.trim() || null,
+      category: form.category.trim(),
       in_stock: form.in_stock,
     });
     setForm({ name: "", description: "", price_bdt: "", image_url: "", category: "Electronics", in_stock: true });
+    setErrors({});
   }
 
   if (!checked) return <div className="p-10 text-center text-stone-400">Checking access…</div>;
@@ -183,22 +250,22 @@ function DevProductsPage() {
             className="space-y-4 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm h-fit"
           >
             <h2 className="font-display text-lg font-semibold">Add product</h2>
-            <Field label="Name">
-              <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Mechanical Keyboard" className="input" required />
+            <Field label="Name" error={errors.name}>
+              <input type="text" value={form.name} onChange={(e) => updateForm({ name: e.target.value })} placeholder="Mechanical Keyboard" className="input" aria-invalid={!!errors.name} maxLength={100} />
             </Field>
-            <Field label="Description">
-              <input type="text" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Short tagline" className="input" />
+            <Field label="Description" error={errors.description}>
+              <input type="text" value={form.description} onChange={(e) => updateForm({ description: e.target.value })} placeholder="Short tagline" className="input" aria-invalid={!!errors.description} maxLength={500} />
             </Field>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Price (৳)">
-                <input type="number" min={0} value={form.price_bdt} onChange={(e) => setForm({ ...form, price_bdt: e.target.value })} placeholder="3500" className="input" required />
+              <Field label="Price (৳)" error={errors.price_bdt}>
+                <input type="number" min={0} value={form.price_bdt} onChange={(e) => updateForm({ price_bdt: e.target.value })} placeholder="3500" className="input" aria-invalid={!!errors.price_bdt} inputMode="numeric" />
               </Field>
-              <Field label="Category">
-                <input type="text" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="input" />
+              <Field label="Category" error={errors.category}>
+                <input type="text" value={form.category} onChange={(e) => updateForm({ category: e.target.value })} className="input" aria-invalid={!!errors.category} maxLength={40} />
               </Field>
             </div>
-            <Field label="Image URL (optional)">
-              <input type="url" value={form.image_url} onChange={(e) => setForm({ ...form, image_url: e.target.value })} placeholder="https://..." className="input" />
+            <Field label="Image URL (optional)" error={errors.image_url}>
+              <input type="url" value={form.image_url} onChange={(e) => updateForm({ image_url: e.target.value })} placeholder="https://..." className="input" aria-invalid={!!errors.image_url} />
             </Field>
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={form.in_stock} onChange={(e) => setForm({ ...form, in_stock: e.target.checked })} className="size-4 rounded accent-brand-mango" />
@@ -207,7 +274,7 @@ function DevProductsPage() {
             <button type="submit" disabled={createMut.isPending} className="w-full rounded-xl bg-brand-ink py-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50">
               {createMut.isPending ? "Adding…" : "Add product"}
             </button>
-            <style>{`.input{width:100%;border:1px solid #e7e5e4;border-radius:0.75rem;padding:0.625rem 0.875rem;font-size:0.875rem;background:#fff;outline:none}.input:focus{border-color:#f59e0b}`}</style>
+            <style>{`.input{width:100%;border:1px solid #e7e5e4;border-radius:0.75rem;padding:0.625rem 0.875rem;font-size:0.875rem;background:#fff;outline:none}.input:focus{border-color:#f59e0b}.input[aria-invalid="true"]{border-color:#dc2626}.input[aria-invalid="true"]:focus{border-color:#dc2626}`}</style>
           </form>
 
           <div className="rounded-2xl border border-stone-200 bg-white shadow-sm overflow-hidden">
@@ -294,13 +361,18 @@ function DevProductsPage() {
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children, error }: { label: string; children: React.ReactNode; error?: string }) {
   return (
     <div>
       <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-stone-500">
         {label}
       </label>
       {children}
+      {error ? (
+        <p role="alert" className="mt-1 text-xs font-medium text-red-600">
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -316,7 +388,7 @@ function EditProductModal({
   onSave: (patch: any) => void;
   saving: boolean;
 }) {
-  const [f, setF] = useState({
+  const [f, setF] = useState<ProductForm>({
     name: product.name,
     description: product.description ?? "",
     price_bdt: String(product.price_bdt),
@@ -324,6 +396,16 @@ function EditProductModal({
     category: product.category,
     in_stock: product.in_stock,
   });
+  const [errors, setErrors] = useState<FieldErrors>({});
+  function updateF(patch: Partial<ProductForm>) {
+    setF((prev) => ({ ...prev, ...patch }));
+    setErrors((prev) => {
+      if (Object.keys(prev).length === 0) return prev;
+      const next = { ...prev };
+      for (const k of Object.keys(patch)) delete next[k as keyof ProductForm];
+      return next;
+    });
+  }
   const enhance = useServerFn(enhanceProduct);
   const [enhancing, setEnhancing] = useState(false);
 
@@ -354,17 +436,19 @@ function EditProductModal({
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    const price = parseInt(f.price_bdt, 10);
-    if (!f.name || isNaN(price)) {
-      toast.error("Name and price are required");
+    const errs = validateProductForm(f);
+    setErrors(errs);
+    if (Object.keys(errs).length > 0) {
+      toast.error("Please fix the highlighted fields");
       return;
     }
+    const price = parseInt(f.price_bdt, 10);
     onSave({
-      name: f.name,
-      description: f.description || null,
+      name: f.name.trim(),
+      description: f.description.trim() || null,
       price_bdt: price,
-      image_url: f.image_url || null,
-      category: f.category,
+      image_url: f.image_url.trim() || null,
+      category: f.category.trim(),
       in_stock: f.in_stock,
     });
   }
@@ -399,22 +483,22 @@ function EditProductModal({
             </button>
           </div>
         </div>
-        <Field label="Name">
-          <input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} className="input" required />
+        <Field label="Name" error={errors.name}>
+          <input value={f.name} onChange={(e) => updateF({ name: e.target.value })} className="input" aria-invalid={!!errors.name} maxLength={100} />
         </Field>
-        <Field label="Description">
-          <textarea value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} className="input min-h-[80px]" />
+        <Field label="Description" error={errors.description}>
+          <textarea value={f.description} onChange={(e) => updateF({ description: e.target.value })} className="input min-h-[80px]" aria-invalid={!!errors.description} maxLength={500} />
         </Field>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Price (৳)">
-            <input type="number" min={0} value={f.price_bdt} onChange={(e) => setF({ ...f, price_bdt: e.target.value })} className="input" required />
+          <Field label="Price (৳)" error={errors.price_bdt}>
+            <input type="number" min={0} value={f.price_bdt} onChange={(e) => updateF({ price_bdt: e.target.value })} className="input" aria-invalid={!!errors.price_bdt} inputMode="numeric" />
           </Field>
-          <Field label="Category">
-            <input value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })} className="input" />
+          <Field label="Category" error={errors.category}>
+            <input value={f.category} onChange={(e) => updateF({ category: e.target.value })} className="input" aria-invalid={!!errors.category} maxLength={40} />
           </Field>
         </div>
-        <Field label="Image URL">
-          <input type="url" value={f.image_url} onChange={(e) => setF({ ...f, image_url: e.target.value })} placeholder="https://..." className="input" />
+        <Field label="Image URL" error={errors.image_url}>
+          <input type="url" value={f.image_url} onChange={(e) => updateF({ image_url: e.target.value })} placeholder="https://..." className="input" aria-invalid={!!errors.image_url} />
         </Field>
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={f.in_stock} onChange={(e) => setF({ ...f, in_stock: e.target.checked })} className="size-4 rounded accent-brand-mango" />
@@ -428,7 +512,7 @@ function EditProductModal({
             {saving ? "Saving…" : "Save changes"}
           </button>
         </div>
-        <style>{`.input{width:100%;border:1px solid #e7e5e4;border-radius:0.75rem;padding:0.625rem 0.875rem;font-size:0.875rem;background:#fff;outline:none}.input:focus{border-color:#f59e0b}`}</style>
+        <style>{`.input{width:100%;border:1px solid #e7e5e4;border-radius:0.75rem;padding:0.625rem 0.875rem;font-size:0.875rem;background:#fff;outline:none}.input:focus{border-color:#f59e0b}.input[aria-invalid="true"]{border-color:#dc2626}.input[aria-invalid="true"]:focus{border-color:#dc2626}`}</style>
       </form>
     </div>
   );
