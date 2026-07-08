@@ -251,14 +251,25 @@ function DevTodosPage() {
               Admin-only. Add tasks here; click "Continue work" to copy the magic phrase.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={copyContinue}
-            title={`Copies "${CONTINUE_PHRASE}" — paste it in chat and I'll pick up the next open todo.`}
-            className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-violet-700"
-          >
-            <Copy className="size-4" /> Continue work
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={runAnalyze}
+              disabled={analyzing}
+              title="Ask AI to group small tasks and split big ones"
+              className="inline-flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-700 hover:bg-violet-100 disabled:opacity-50"
+            >
+              <Combine className="size-4" /> {analyzing ? "Analyzing…" : "Merge / split"}
+            </button>
+            <button
+              type="button"
+              onClick={copyContinue}
+              title={`Copies "${CONTINUE_PHRASE}" — paste it in chat and I'll pick up the next open todo.`}
+              className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-violet-700"
+            >
+              <Copy className="size-4" /> Continue work
+            </button>
+          </div>
         </div>
 
         <form
