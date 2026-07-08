@@ -77,6 +77,9 @@ function DevTodosPage() {
   const update = useServerFn(updateDevTodo);
   const remove = useServerFn(deleteDevTodo);
   const enhance = useServerFn(enhanceDevTodo);
+  const analyze = useServerFn(analyzeTodoPlan);
+  const mergeFn = useServerFn(mergeTodos);
+  const splitFn = useServerFn(splitTodo);
 
   const { data: todos = [], isLoading } = useQuery({
     queryKey: ["dev-todos"],
@@ -123,6 +126,45 @@ function DevTodosPage() {
   const [filter, setFilter] = useState<"all" | Status>("all");
   const [enhancing, setEnhancing] = useState(false);
   const [autoEnhance, setAutoEnhance] = useState(true);
+  const [plan, setPlan] = useState<{
+    merges: { ids: string[]; title: string; details: string; reason: string }[];
+    splits: { id: string; parts: { title: string; details: string }[]; reason: string }[];
+    perTodo: Record<string, { action: string; targetIds?: string[]; hint?: string }>;
+  } | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [showPlan, setShowPlan] = useState(false);
+
+  const runAnalyze = async () => {
+    setAnalyzing(true);
+    try {
+      const out = await analyze();
+      setPlan(out as any);
+      setShowPlan(true);
+    } catch (e: any) {
+      toast.error("Analyze failed", { description: e.message });
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  const mergeMut = useMutation({
+    mutationFn: (data: { ids: string[]; title: string; details: string }) => mergeFn({ data }),
+    onSuccess: () => {
+      toast.success("Tasks merged");
+      setPlan((p) => (p ? { ...p, merges: [] } : p));
+      invalidate();
+    },
+    onError: (e: any) => toast.error("Merge failed", { description: e.message }),
+  });
+
+  const splitMut = useMutation({
+    mutationFn: (data: { id: string; parts: { title: string; details: string }[] }) => splitFn({ data }),
+    onSuccess: () => {
+      toast.success("Task split into parts");
+      invalidate();
+    },
+    onError: (e: any) => toast.error("Split failed", { description: e.message }),
+  });
 
   async function runEnhance(): Promise<{ title: string; details: string } | null> {
     if (!title.trim()) return null;
