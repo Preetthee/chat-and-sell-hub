@@ -49,7 +49,7 @@ export const Route = createFileRoute("/")({
           "@type": "Organization",
           name: "Deshi Cart",
           url: "https://chat-and-sell-hub.lovable.app/",
-          address: { "@type": "PostalAddress", addressLocality: "Dhaka", addressCountry: "BD" },
+          address: { "@type": "PostalAddress", streetAddress: "Zero Point", addressLocality: "Rajshahi", addressCountry: "BD" },
         }),
       },
     ],
