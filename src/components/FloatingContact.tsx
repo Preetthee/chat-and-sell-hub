@@ -5,7 +5,7 @@ export const CONTACT = {
   messengerUrl: "https://m.me/1222478777607742",
   email: "hello@example.com",
   phoneDisplay: "+880 14105 33563",
-  address: "Dhaka, Bangladesh",
+  address: "Zero Point, Rajshahi, Bangladesh",
 };
 
 export function whatsappLink(message?: string) {
