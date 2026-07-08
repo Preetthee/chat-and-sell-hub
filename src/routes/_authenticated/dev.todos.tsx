@@ -11,9 +11,12 @@ import {
   updateDevTodo,
   deleteDevTodo,
   enhanceDevTodo,
+  analyzeTodoPlan,
+  mergeTodos,
+  splitTodo,
 } from "@/lib/dev-todos.functions";
 import { toast } from "sonner";
-import { ArrowLeft, Trash2, Sparkles, Copy, ArrowUp, ArrowDown, Wand2 } from "lucide-react";
+import { ArrowLeft, Trash2, Sparkles, Copy, ArrowUp, ArrowDown, Wand2, Combine, Split, X, Play } from "lucide-react";
 import { AdminGate } from "@/components/AdminGate";
 
 type Status = "pending" | "in_progress" | "done" | "blocked";
