@@ -11,9 +11,12 @@ import {
   updateDevTodo,
   deleteDevTodo,
   enhanceDevTodo,
+  analyzeTodoPlan,
+  mergeTodos,
+  splitTodo,
 } from "@/lib/dev-todos.functions";
 import { toast } from "sonner";
-import { ArrowLeft, Trash2, Sparkles, Copy, ArrowUp, ArrowDown, Wand2 } from "lucide-react";
+import { ArrowLeft, Trash2, Sparkles, Copy, ArrowUp, ArrowDown, Wand2, Combine, Split, X, Play } from "lucide-react";
 import { AdminGate } from "@/components/AdminGate";
 
 type Status = "pending" | "in_progress" | "done" | "blocked";
@@ -74,6 +77,9 @@ function DevTodosPage() {
   const update = useServerFn(updateDevTodo);
   const remove = useServerFn(deleteDevTodo);
   const enhance = useServerFn(enhanceDevTodo);
+  const analyze = useServerFn(analyzeTodoPlan);
+  const mergeFn = useServerFn(mergeTodos);
+  const splitFn = useServerFn(splitTodo);
 
   const { data: todos = [], isLoading } = useQuery({
     queryKey: ["dev-todos"],
@@ -120,6 +126,45 @@ function DevTodosPage() {
   const [filter, setFilter] = useState<"all" | Status>("all");
   const [enhancing, setEnhancing] = useState(false);
   const [autoEnhance, setAutoEnhance] = useState(true);
+  const [plan, setPlan] = useState<{
+    merges: { ids: string[]; title: string; details: string; reason: string }[];
+    splits: { id: string; parts: { title: string; details: string }[]; reason: string }[];
+    perTodo: Record<string, { action: string; targetIds?: string[]; hint?: string }>;
+  } | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [showPlan, setShowPlan] = useState(false);
+
+  const runAnalyze = async () => {
+    setAnalyzing(true);
+    try {
+      const out = await analyze();
+      setPlan(out as any);
+      setShowPlan(true);
+    } catch (e: any) {
+      toast.error("Analyze failed", { description: e.message });
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  const mergeMut = useMutation({
+    mutationFn: (data: { ids: string[]; title: string; details: string }) => mergeFn({ data }),
+    onSuccess: () => {
+      toast.success("Tasks merged");
+      setPlan((p) => (p ? { ...p, merges: [] } : p));
+      invalidate();
+    },
+    onError: (e: any) => toast.error("Merge failed", { description: e.message }),
+  });
+
+  const splitMut = useMutation({
+    mutationFn: (data: { id: string; parts: { title: string; details: string }[] }) => splitFn({ data }),
+    onSuccess: () => {
+      toast.success("Task split into parts");
+      invalidate();
+    },
+    onError: (e: any) => toast.error("Split failed", { description: e.message }),
+  });
 
   async function runEnhance(): Promise<{ title: string; details: string } | null> {
     if (!title.trim()) return null;
@@ -206,14 +251,25 @@ function DevTodosPage() {
               Admin-only. Add tasks here; click "Continue work" to copy the magic phrase.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={copyContinue}
-            title={`Copies "${CONTINUE_PHRASE}" — paste it in chat and I'll pick up the next open todo.`}
-            className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-violet-700"
-          >
-            <Copy className="size-4" /> Continue work
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={runAnalyze}
+              disabled={analyzing}
+              title="Ask AI to group small tasks and split big ones"
+              className="inline-flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-700 hover:bg-violet-100 disabled:opacity-50"
+            >
+              <Combine className="size-4" /> {analyzing ? "Analyzing…" : "Merge / split"}
+            </button>
+            <button
+              type="button"
+              onClick={copyContinue}
+              title={`Copies "${CONTINUE_PHRASE}" — paste it in chat and I'll pick up the next open todo.`}
+              className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-violet-700"
+            >
+              <Copy className="size-4" /> Continue work
+            </button>
+          </div>
         </div>
 
         <form
@@ -450,6 +506,19 @@ function DevTodosPage() {
                                 {t.details}
                               </p>
                             )}
+                            {!isDone && plan?.perTodo?.[t.id] && plan.perTodo[t.id].action !== "none" && (
+                              <TodoSuggestion
+                                todoId={t.id}
+                                suggestion={plan.perTodo[t.id]}
+                                plan={plan}
+                                onMerge={(m) =>
+                                  mergeMut.mutate({ ids: m.ids, title: m.title, details: m.details })
+                                }
+                                onSplit={(s) => splitMut.mutate({ id: s.id, parts: s.parts })}
+                                onOpenPlan={() => setShowPlan(true)}
+                                allTodos={todos}
+                              />
+                            )}
                           </div>
                         </li>
                       );
@@ -461,7 +530,200 @@ function DevTodosPage() {
           </div>
         )}
       </main>
+      {showPlan && plan && (
+        <PlanModal
+          plan={plan}
+          todos={todos}
+          onClose={() => setShowPlan(false)}
+          onMerge={(m) => mergeMut.mutate({ ids: m.ids, title: m.title, details: m.details })}
+          onSplit={(s) => splitMut.mutate({ id: s.id, parts: s.parts })}
+          merging={mergeMut.isPending}
+          splitting={splitMut.isPending}
+        />
+      )}
       <Footer />
+    </div>
+  );
+}
+
+function TodoSuggestion({
+  todoId,
+  suggestion,
+  plan,
+  onMerge,
+  onSplit,
+  onOpenPlan,
+  allTodos,
+}: {
+  todoId: string;
+  suggestion: { action: string; targetIds?: string[]; hint?: string };
+  plan: {
+    merges: { ids: string[]; title: string; details: string; reason: string }[];
+    splits: { id: string; parts: { title: string; details: string }[]; reason: string }[];
+  };
+  onMerge: (m: { ids: string[]; title: string; details: string }) => void;
+  onSplit: (s: { id: string; parts: { title: string; details: string }[] }) => void;
+  onOpenPlan: () => void;
+  allTodos: any[];
+}) {
+  const { action, hint } = suggestion;
+  const relatedMerge = plan.merges.find((m) => m.ids.includes(todoId));
+  const relatedSplit = plan.splits.find((s) => s.id === todoId);
+  const titleFor = (id: string) => allTodos.find((t) => t.id === id)?.title ?? id.slice(0, 6);
+
+  if (action === "merge_with" && relatedMerge) {
+    const others = relatedMerge.ids.filter((id) => id !== todoId).map(titleFor);
+    return (
+      <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-violet-100 bg-violet-50 px-2.5 py-1.5 text-[11px] text-violet-800">
+        <Combine className="size-3" />
+        <span>
+          {hint || `Merge with ${others.slice(0, 2).join(", ")}${others.length > 2 ? "…" : ""}`}
+        </span>
+        <button
+          type="button"
+          onClick={() => onMerge(relatedMerge)}
+          className="ml-auto rounded-md bg-violet-600 px-2 py-0.5 text-[10px] font-semibold text-white hover:bg-violet-700"
+        >
+          Merge
+        </button>
+      </div>
+    );
+  }
+  if (action === "split" && relatedSplit) {
+    return (
+      <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-amber-100 bg-amber-50 px-2.5 py-1.5 text-[11px] text-amber-800">
+        <Split className="size-3" />
+        <span>{hint || `Split into ${relatedSplit.parts.length} parts`}</span>
+        <button
+          type="button"
+          onClick={() => onSplit(relatedSplit)}
+          className="ml-auto rounded-md bg-amber-600 px-2 py-0.5 text-[10px] font-semibold text-white hover:bg-amber-700"
+        >
+          Split
+        </button>
+      </div>
+    );
+  }
+  if (action === "start") {
+    return (
+      <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-emerald-100 bg-emerald-50 px-2.5 py-1.5 text-[11px] text-emerald-800">
+        <Play className="size-3" />
+        <span>{hint || "Right-sized — start this next."}</span>
+        <button
+          type="button"
+          onClick={onOpenPlan}
+          className="ml-auto rounded-md border border-emerald-300 bg-white px-2 py-0.5 text-[10px] font-semibold text-emerald-700 hover:bg-emerald-50"
+        >
+          Plan
+        </button>
+      </div>
+    );
+  }
+  return null;
+}
+
+function PlanModal({
+  plan,
+  todos,
+  onClose,
+  onMerge,
+  onSplit,
+  merging,
+  splitting,
+}: {
+  plan: {
+    merges: { ids: string[]; title: string; details: string; reason: string }[];
+    splits: { id: string; parts: { title: string; details: string }[]; reason: string }[];
+  };
+  todos: any[];
+  onClose: () => void;
+  onMerge: (m: { ids: string[]; title: string; details: string }) => void;
+  onSplit: (s: { id: string; parts: { title: string; details: string }[] }) => void;
+  merging: boolean;
+  splitting: boolean;
+}) {
+  const titleFor = (id: string) => todos.find((t) => t.id === id)?.title ?? id.slice(0, 6);
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4" onClick={onClose}>
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl"
+      >
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="font-display text-xl font-bold">AI merge & split plan</h3>
+          <button onClick={onClose} className="rounded-md p-1 text-stone-500 hover:bg-stone-100">
+            <X className="size-4" />
+          </button>
+        </div>
+
+        <section className="mb-6">
+          <h4 className="mb-2 flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-stone-500">
+            <Combine className="size-3.5" /> Merges ({plan.merges.length})
+          </h4>
+          {plan.merges.length === 0 ? (
+            <p className="text-xs text-stone-400">Nothing small enough to group right now.</p>
+          ) : (
+            <ul className="space-y-3">
+              {plan.merges.map((m, i) => (
+                <li key={i} className="rounded-xl border border-violet-200 bg-violet-50/50 p-3">
+                  <p className="text-sm font-semibold text-brand-ink">{m.title}</p>
+                  {m.reason && <p className="mt-0.5 text-xs italic text-violet-700">{m.reason}</p>}
+                  <ul className="mt-2 space-y-0.5 text-xs text-stone-600">
+                    {m.ids.map((id) => (
+                      <li key={id}>• {titleFor(id)}</li>
+                    ))}
+                  </ul>
+                  {m.details && (
+                    <pre className="mt-2 whitespace-pre-wrap text-[11px] text-stone-500">{m.details}</pre>
+                  )}
+                  <button
+                    onClick={() => onMerge(m)}
+                    disabled={merging}
+                    className="mt-2 rounded-md bg-violet-600 px-3 py-1 text-xs font-semibold text-white hover:bg-violet-700 disabled:opacity-50"
+                  >
+                    Apply merge
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section>
+          <h4 className="mb-2 flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-stone-500">
+            <Split className="size-3.5" /> Splits ({plan.splits.length})
+          </h4>
+          {plan.splits.length === 0 ? (
+            <p className="text-xs text-stone-400">No tasks look big enough to split.</p>
+          ) : (
+            <ul className="space-y-3">
+              {plan.splits.map((s, i) => (
+                <li key={i} className="rounded-xl border border-amber-200 bg-amber-50/50 p-3">
+                  <p className="text-sm font-semibold text-brand-ink">Split: {titleFor(s.id)}</p>
+                  {s.reason && <p className="mt-0.5 text-xs italic text-amber-700">{s.reason}</p>}
+                  <ol className="mt-2 space-y-1 text-xs text-stone-600">
+                    {s.parts.map((p, j) => (
+                      <li key={j}>
+                        <span className="font-semibold text-brand-ink">{j + 1}. {p.title}</span>
+                        {p.details && (
+                          <pre className="whitespace-pre-wrap text-[11px] text-stone-500">{p.details}</pre>
+                        )}
+                      </li>
+                    ))}
+                  </ol>
+                  <button
+                    onClick={() => onSplit(s)}
+                    disabled={splitting}
+                    className="mt-2 rounded-md bg-amber-600 px-3 py-1 text-xs font-semibold text-white hover:bg-amber-700 disabled:opacity-50"
+                  >
+                    Apply split
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
     </div>
   );
 }

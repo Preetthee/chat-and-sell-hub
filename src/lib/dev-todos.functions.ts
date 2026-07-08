@@ -177,3 +177,186 @@ export const enhanceDevTodo = createServerFn({ method: "POST" })
       details: (parsed.details ?? data.details ?? "").toString().slice(0, 4000),
     };
   });
+
+async function callGatewayJson(system: string, user: string) {
+  const apiKey = process.env.LOVABLE_API_KEY;
+  if (!apiKey) throw new Error("AI is not configured (LOVABLE_API_KEY missing)");
+  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model: "google/gemini-2.5-flash",
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: user },
+      ],
+      response_format: { type: "json_object" },
+    }),
+  });
+  if (res.status === 429) throw new Error("AI is busy — try again in a moment.");
+  if (res.status === 402) throw new Error("AI credits exhausted for this workspace.");
+  if (!res.ok) throw new Error(`AI request failed (${res.status})`);
+  const json: any = await res.json();
+  const content: string = json?.choices?.[0]?.message?.content ?? "";
+  try {
+    return JSON.parse(content);
+  } catch {
+    const m = content.match(/\{[\s\S]*\}/);
+    if (m) {
+      try {
+        return JSON.parse(m[0]);
+      } catch {
+        /* ignore */
+      }
+    }
+    return {};
+  }
+}
+
+export const analyzeTodoPlan = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context);
+    const { data: todos, error } = await context.supabase
+      .from("dev_todos")
+      .select("id, title, details, status, priority")
+      .in("status", ["pending", "in_progress", "blocked"]);
+    if (error) throw new Error(error.message);
+    const list = (todos ?? []).map((t: any) => ({
+      id: t.id,
+      title: t.title,
+      details: (t.details ?? "").toString().slice(0, 400),
+      priority: t.priority ?? "p2",
+      status: t.status,
+    }));
+    if (list.length === 0) return { merges: [], splits: [], perTodo: {} };
+
+    const system = [
+      "You are a senior product engineer triaging a solo founder's build backlog for Deshi Cart.",
+      "You receive open todos as JSON. Return STRICT JSON with this shape:",
+      `{"merges":[{"ids":["uuid",...],"title":"...","details":"- ...","reason":"..."}],`,
+      `"splits":[{"id":"uuid","parts":[{"title":"...","details":"- ..."}],"reason":"..."}],`,
+      `"perTodo":{"<uuid>":{"action":"merge_with"|"split"|"start"|"none","targetIds":["uuid"],"hint":"one short sentence"}}}`,
+      "Rules:",
+      "- Consider a task 'small' when it is a single-file/copy/config change or under ~1 hour.",
+      "- Consider a task 'big' when it spans multiple concerns (schema + UI + server) or would take a day.",
+      "- Merge ONLY tasks that share a surface (same page, same domain, same file) AND are both small. Group 2-4 max.",
+      "- Split ONLY tasks that clearly have >=2 independent deliverables. Produce 2-4 parts.",
+      "- perTodo must include EVERY input id exactly once.",
+      "- action='start' when the task is already right-sized and ready to build.",
+      "- action='none' when nothing to suggest.",
+      "- titles: 4-10 words imperative, no emoji, no fluff.",
+      "- details: 2-6 bullet lines starting with '- '.",
+      "- Never invent uuids; only reuse ids from the input.",
+      "- Do NOT wrap the JSON in backticks or add prose.",
+    ].join("\n");
+
+    const parsed = await callGatewayJson(system, `Open todos:\n${JSON.stringify(list)}`);
+    const ids = new Set(list.map((t) => t.id));
+    const merges = Array.isArray(parsed?.merges) ? parsed.merges : [];
+    const splits = Array.isArray(parsed?.splits) ? parsed.splits : [];
+    const perTodo: Record<string, any> = {};
+    const rawPer = parsed?.perTodo && typeof parsed.perTodo === "object" ? parsed.perTodo : {};
+    for (const id of ids) {
+      const p = rawPer[id];
+      perTodo[id] = p && typeof p === "object" ? p : { action: "none", hint: "" };
+    }
+    return {
+      merges: merges
+        .filter((m: any) => Array.isArray(m?.ids) && m.ids.every((x: string) => ids.has(x)) && m.ids.length >= 2)
+        .slice(0, 8),
+      splits: splits
+        .filter((s: any) => typeof s?.id === "string" && ids.has(s.id) && Array.isArray(s?.parts) && s.parts.length >= 2)
+        .slice(0, 8),
+      perTodo,
+    };
+  });
+
+export const mergeTodos = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        ids: z.array(z.string().uuid()).min(2).max(8),
+        title: z.string().min(1).max(300),
+        details: z.string().max(4000).optional().nullable(),
+        priority: priorityEnum.optional(),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { data: sources, error: fetchErr } = await context.supabase
+      .from("dev_todos")
+      .select("id, title, details")
+      .in("id", data.ids);
+    if (fetchErr) throw new Error(fetchErr.message);
+    const originals = (sources ?? []) as { id: string; title: string; details: string | null }[];
+    const mergedFrom = originals.map((s) => `- ${s.title}`).join("\n");
+    const details = [data.details?.trim() || "", "", "Merged from:", mergedFrom].filter(Boolean).join("\n");
+    const { data: created, error: insErr } = await context.supabase
+      .from("dev_todos")
+      .insert({
+        title: data.title,
+        details,
+        source: "auto",
+        priority: data.priority ?? "p2",
+        created_by: context.userId,
+      })
+      .select()
+      .single();
+    if (insErr) throw new Error(insErr.message);
+    const { error: updErr } = await context.supabase
+      .from("dev_todos")
+      .update({ status: "done" })
+      .in("id", data.ids);
+    if (updErr) throw new Error(updErr.message);
+    return { id: created.id };
+  });
+
+export const splitTodo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        parts: z
+          .array(
+            z.object({
+              title: z.string().min(1).max(300),
+              details: z.string().max(4000).optional().nullable(),
+            }),
+          )
+          .min(2)
+          .max(8),
+        priority: priorityEnum.optional(),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { data: original, error: fetchErr } = await context.supabase
+      .from("dev_todos")
+      .select("id, title, priority")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (fetchErr) throw new Error(fetchErr.message);
+    if (!original) throw new Error("Todo not found");
+    const parentTitle = original.title as string;
+    const priority = data.priority ?? (original.priority as any) ?? "p2";
+    const rows = data.parts.map((p) => ({
+      title: p.title,
+      details: [p.details?.trim() || "", "", `Split from: ${parentTitle}`].filter(Boolean).join("\n"),
+      source: "auto" as const,
+      priority,
+      created_by: context.userId,
+    }));
+    const { error: insErr } = await context.supabase.from("dev_todos").insert(rows);
+    if (insErr) throw new Error(insErr.message);
+    const { error: updErr } = await context.supabase
+      .from("dev_todos")
+      .update({ status: "done" })
+      .eq("id", data.id);
+    if (updErr) throw new Error(updErr.message);
+    return { ok: true };
+  });
