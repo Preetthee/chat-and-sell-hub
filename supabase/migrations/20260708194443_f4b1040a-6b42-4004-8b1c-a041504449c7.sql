@@ -1,0 +1,1 @@
+update public.dev_todos set status='done', updated_at=now() where id='f62b25d6-d74b-4062-acf4-f51b6565e94d';
