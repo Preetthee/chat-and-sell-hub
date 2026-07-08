@@ -8,7 +8,7 @@ export const Route = createFileRoute("/contact")({
   head: () => ({
     meta: [
       { title: "Contact — Deshi Cart" },
-      { name: "description", content: "Reach Deshi Cart on WhatsApp, Messenger, email, or phone — we reply quickly from Dhaka, Bangladesh." },
+      { name: "description", content: "Reach Deshi Cart on WhatsApp, Messenger, email, or phone — we reply quickly from Zero Point, Rajshahi, Bangladesh." },
       { property: "og:title", content: "Contact Deshi Cart" },
       { property: "og:description", content: "Reach us on WhatsApp, Messenger, email, or phone." },
       { property: "og:url", content: "https://chat-and-sell-hub.lovable.app/contact" },
@@ -26,7 +26,8 @@ export const Route = createFileRoute("/contact")({
           telephone: "+8801410533563",
           address: {
             "@type": "PostalAddress",
-            addressLocality: "Dhaka",
+            streetAddress: "Zero Point",
+            addressLocality: "Rajshahi",
             addressCountry: "BD",
           },
         }),
