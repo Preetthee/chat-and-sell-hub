@@ -517,6 +517,8 @@ function DevTodosPage() {
                                 onSplit={(s) => splitMut.mutate({ id: s.id, parts: s.parts })}
                                 onOpenPlan={() => setShowPlan(true)}
                                 allTodos={todos}
+                                merging={mergeMut.isPending}
+                                splitting={splitMut.isPending}
                               />
                             )}
                           </div>
