@@ -556,6 +556,8 @@ function TodoSuggestion({
   onSplit,
   onOpenPlan,
   allTodos,
+  merging,
+  splitting,
 }: {
   todoId: string;
   suggestion: { action: string; targetIds?: string[]; hint?: string };
@@ -567,6 +569,8 @@ function TodoSuggestion({
   onSplit: (s: { id: string; parts: { title: string; details: string }[] }) => void;
   onOpenPlan: () => void;
   allTodos: any[];
+  merging: boolean;
+  splitting: boolean;
 }) {
   const { action, hint } = suggestion;
   const relatedMerge = plan.merges.find((m) => m.ids.includes(todoId));
@@ -584,9 +588,10 @@ function TodoSuggestion({
         <button
           type="button"
           onClick={() => onMerge(relatedMerge)}
-          className="ml-auto rounded-md bg-violet-600 px-2 py-0.5 text-[10px] font-semibold text-white hover:bg-violet-700"
+          disabled={merging}
+          className="ml-auto rounded-md bg-violet-600 px-2 py-0.5 text-[10px] font-semibold text-white hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Merge
+          {merging ? "Merging…" : "Merge"}
         </button>
       </div>
     );
@@ -599,9 +604,10 @@ function TodoSuggestion({
         <button
           type="button"
           onClick={() => onSplit(relatedSplit)}
-          className="ml-auto rounded-md bg-amber-600 px-2 py-0.5 text-[10px] font-semibold text-white hover:bg-amber-700"
+          disabled={splitting}
+          className="ml-auto rounded-md bg-amber-600 px-2 py-0.5 text-[10px] font-semibold text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Split
+          {splitting ? "Splitting…" : "Split"}
         </button>
       </div>
     );
