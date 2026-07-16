@@ -450,6 +450,14 @@ function DevTodosPage() {
                                 >
                                   {PRIORITY_LABEL[p]}
                                 </span>
+                                {t.effort && (
+                                  <span
+                                    className={`inline-flex shrink-0 items-center rounded-md border px-1.5 py-0.5 text-[10px] font-semibold ${EFFORT_STYLES[t.effort as Effort]}`}
+                                    title={`Estimated effort: ${EFFORT_LABEL[t.effort as Effort]}`}
+                                  >
+                                    {EFFORT_LABEL[t.effort as Effort]}
+                                  </span>
+                                )}
                                 <p
                                   className={`text-sm font-medium ${
                                     isDone ? "text-stone-400 line-through" : "text-brand-ink"
