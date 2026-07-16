@@ -49,6 +49,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           details: string | null
+          effort: Database["public"]["Enums"]["dev_todo_effort"] | null
           id: string
           priority: Database["public"]["Enums"]["dev_todo_priority"]
           sort_order: number
@@ -61,6 +62,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           details?: string | null
+          effort?: Database["public"]["Enums"]["dev_todo_effort"] | null
           id?: string
           priority?: Database["public"]["Enums"]["dev_todo_priority"]
           sort_order?: number
@@ -73,6 +75,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           details?: string | null
+          effort?: Database["public"]["Enums"]["dev_todo_effort"] | null
           id?: string
           priority?: Database["public"]["Enums"]["dev_todo_priority"]
           sort_order?: number
@@ -197,6 +200,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user"
+      dev_todo_effort: "xs" | "s" | "m" | "l" | "xl"
       dev_todo_priority: "p0" | "p1" | "p2" | "p3"
       dev_todo_source: "user" | "auto"
       dev_todo_status: "pending" | "in_progress" | "done" | "blocked"
@@ -328,6 +332,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user"],
+      dev_todo_effort: ["xs", "s", "m", "l", "xl"],
       dev_todo_priority: ["p0", "p1", "p2", "p3"],
       dev_todo_source: ["user", "auto"],
       dev_todo_status: ["pending", "in_progress", "done", "blocked"],
