@@ -522,6 +522,24 @@ function DevTodosPage() {
                                   <option value="p3">P3</option>
                                 </select>
                                 <select
+                                  value={(t.effort as Effort) ?? ""}
+                                  onChange={(e) =>
+                                    updateMut.mutate({
+                                      id: t.id,
+                                      effort: (e.target.value || null) as Effort | null,
+                                    })
+                                  }
+                                  className="rounded-md border border-stone-200 bg-white px-2 py-1 text-xs outline-none focus:border-brand-mango"
+                                  aria-label="Effort"
+                                >
+                                  <option value="">— size</option>
+                                  <option value="xs">XS</option>
+                                  <option value="s">S</option>
+                                  <option value="m">M</option>
+                                  <option value="l">L</option>
+                                  <option value="xl">XL</option>
+                                </select>
+                                <select
                                   value={t.status}
                                   onChange={(e) =>
                                     updateMut.mutate({
