@@ -124,6 +124,7 @@ function DevTodosPage() {
       title?: string;
       details?: string | null;
       priority?: Priority;
+      effort?: Effort | null;
       sort_order?: number;
     }) => update({ data }),
     onSuccess: invalidate,
