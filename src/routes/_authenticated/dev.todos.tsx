@@ -14,13 +14,31 @@ import {
   analyzeTodoPlan,
   mergeTodos,
   splitTodo,
+  estimateEffort,
 } from "@/lib/dev-todos.functions";
 import { toast } from "sonner";
-import { ArrowLeft, Trash2, Sparkles, Copy, ArrowUp, ArrowDown, Wand2, Combine, Split, X, Play } from "lucide-react";
+import { ArrowLeft, Trash2, Sparkles, Copy, ArrowUp, ArrowDown, Wand2, Combine, Split, X, Play, Gauge } from "lucide-react";
 import { AdminGate } from "@/components/AdminGate";
 
 type Status = "pending" | "in_progress" | "done" | "blocked";
 type Priority = "p0" | "p1" | "p2" | "p3";
+type Effort = "xs" | "s" | "m" | "l" | "xl";
+
+const EFFORT_LABEL: Record<Effort, string> = {
+  xs: "XS · <30m",
+  s: "S · ~1h",
+  m: "M · 2-4h",
+  l: "L · ~1d",
+  xl: "XL · >1d",
+};
+
+const EFFORT_STYLES: Record<Effort, string> = {
+  xs: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  s: "bg-teal-50 text-teal-700 border-teal-200",
+  m: "bg-sky-50 text-sky-700 border-sky-200",
+  l: "bg-orange-50 text-orange-700 border-orange-200",
+  xl: "bg-rose-50 text-rose-700 border-rose-200",
+};
 
 const STATUS_LABEL: Record<Status, string> = {
   pending: "Pending",
@@ -80,6 +98,7 @@ function DevTodosPage() {
   const analyze = useServerFn(analyzeTodoPlan);
   const mergeFn = useServerFn(mergeTodos);
   const splitFn = useServerFn(splitTodo);
+  const estimateFn = useServerFn(estimateEffort);
 
   const { data: todos = [], isLoading } = useQuery({
     queryKey: ["dev-todos"],
@@ -133,6 +152,20 @@ function DevTodosPage() {
   } | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [showPlan, setShowPlan] = useState(false);
+  const [estimating, setEstimating] = useState(false);
+
+  const runEstimate = async (onlyMissing: boolean) => {
+    setEstimating(true);
+    try {
+      const out = await estimateFn({ data: { onlyMissing } });
+      toast.success(`Estimated ${out.updated} task${out.updated === 1 ? "" : "s"}`);
+      invalidate();
+    } catch (e: any) {
+      toast.error("Estimate failed", { description: e.message });
+    } finally {
+      setEstimating(false);
+    }
+  };
 
   const runAnalyze = async () => {
     setAnalyzing(true);
@@ -260,6 +293,15 @@ function DevTodosPage() {
               className="inline-flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-700 hover:bg-violet-100 disabled:opacity-50"
             >
               <Combine className="size-4" /> {analyzing ? "Analyzing…" : "Merge / split"}
+            </button>
+            <button
+              type="button"
+              onClick={() => runEstimate(true)}
+              disabled={estimating}
+              title="Ask AI to size any open todos missing an effort estimate"
+              className="inline-flex items-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-4 py-2.5 text-sm font-semibold text-sky-700 hover:bg-sky-100 disabled:opacity-50"
+            >
+              <Gauge className="size-4" /> {estimating ? "Estimating…" : "Estimate effort"}
             </button>
             <button
               type="button"
