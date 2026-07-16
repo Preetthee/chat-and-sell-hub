@@ -5,6 +5,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 const statusEnum = z.enum(["pending", "in_progress", "done", "blocked"]);
 const sourceEnum = z.enum(["user", "auto"]);
 const priorityEnum = z.enum(["p0", "p1", "p2", "p3"]);
+const effortEnum = z.enum(["xs", "s", "m", "l", "xl"]);
 
 async function assertAdmin(ctx: { supabase: any; userId: string }) {
   const { data, error } = await ctx.supabase
@@ -22,7 +23,7 @@ export const listDevTodos = createServerFn({ method: "GET" })
     await assertAdmin(context);
     const { data, error } = await context.supabase
       .from("dev_todos")
-      .select("id, title, details, status, source, priority, sort_order, created_at, updated_at")
+      .select("id, title, details, status, source, priority, effort, sort_order, created_at, updated_at")
       .order("status", { ascending: true })
       .order("priority", { ascending: true })
       .order("sort_order", { ascending: true })
@@ -70,6 +71,7 @@ export const updateDevTodo = createServerFn({ method: "POST" })
         details: z.string().max(4000).optional().nullable(),
         status: statusEnum.optional(),
         priority: priorityEnum.optional(),
+        effort: effortEnum.optional().nullable(),
         sort_order: z.number().int().optional(),
       })
       .parse(data),
@@ -81,12 +83,14 @@ export const updateDevTodo = createServerFn({ method: "POST" })
       details?: string | null;
       status?: "pending" | "in_progress" | "done" | "blocked";
       priority?: "p0" | "p1" | "p2" | "p3";
+      effort?: "xs" | "s" | "m" | "l" | "xl" | null;
       sort_order?: number;
     } = {};
     if (data.title !== undefined) patch.title = data.title;
     if (data.details !== undefined) patch.details = data.details;
     if (data.status !== undefined) patch.status = data.status;
     if (data.priority !== undefined) patch.priority = data.priority;
+    if (data.effort !== undefined) patch.effort = data.effort;
     if (data.sort_order !== undefined) patch.sort_order = data.sort_order;
     const { error } = await context.supabase
       .from("dev_todos")
@@ -359,4 +363,56 @@ export const splitTodo = createServerFn({ method: "POST" })
       .eq("id", data.id);
     if (updErr) throw new Error(updErr.message);
     return { ok: true };
+  });
+
+export const estimateEffort = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z.object({ onlyMissing: z.boolean().optional() }).parse(data ?? {}),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    let query = context.supabase
+      .from("dev_todos")
+      .select("id, title, details, effort")
+      .in("status", ["pending", "in_progress", "blocked"]);
+    if (data.onlyMissing) query = query.is("effort", null);
+    const { data: todos, error } = await query;
+    if (error) throw new Error(error.message);
+    const list = (todos ?? []) as { id: string; title: string; details: string | null; effort: string | null }[];
+    if (list.length === 0) return { updated: 0 };
+
+    const system = [
+      "You are a senior engineer estimating build effort for a solo founder on Deshi Cart (React + TanStack Start + Supabase).",
+      "Given todos as JSON, return STRICT JSON: {\"estimates\":[{\"id\":\"uuid\",\"effort\":\"xs\"|\"s\"|\"m\"|\"l\"|\"xl\"}]}.",
+      "Scale (rough dev time):",
+      "- xs: <30 min (copy tweak, config, one-line fix)",
+      "- s: 30-90 min (single small component or server fn)",
+      "- m: 2-4 hrs (feature touching 2-3 files)",
+      "- l: 0.5-1 day (schema + UI + server, multi-file)",
+      "- xl: >1 day (subsystem, migrations + several routes)",
+      "Include EVERY input id exactly once. Reuse only provided ids.",
+      "Do NOT wrap in backticks.",
+    ].join("\n");
+
+    const input = list.map((t) => ({
+      id: t.id,
+      title: t.title,
+      details: (t.details ?? "").toString().slice(0, 300),
+    }));
+    const parsed = await callGatewayJson(system, `Todos:\n${JSON.stringify(input)}`);
+    const ids = new Set(list.map((t) => t.id));
+    const valid = new Set(["xs", "s", "m", "l", "xl"]);
+    const estimates: { id: string; effort: string }[] = Array.isArray(parsed?.estimates)
+      ? parsed.estimates.filter((e: any) => ids.has(e?.id) && valid.has(e?.effort))
+      : [];
+    let updated = 0;
+    for (const e of estimates) {
+      const { error: uErr } = await context.supabase
+        .from("dev_todos")
+        .update({ effort: e.effort as "xs" | "s" | "m" | "l" | "xl" })
+        .eq("id", e.id);
+      if (!uErr) updated++;
+    }
+    return { updated };
   });
