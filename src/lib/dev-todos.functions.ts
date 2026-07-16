@@ -410,7 +410,7 @@ export const estimateEffort = createServerFn({ method: "POST" })
     for (const e of estimates) {
       const { error: uErr } = await context.supabase
         .from("dev_todos")
-        .update({ effort: e.effort })
+        .update({ effort: e.effort as "xs" | "s" | "m" | "l" | "xl" })
         .eq("id", e.id);
       if (!uErr) updated++;
     }
